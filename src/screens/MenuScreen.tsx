@@ -154,22 +154,23 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'flex-start',
         alignItems: 'center',
-        paddingTop: 30,
-        paddingHorizontal: 10,
+        paddingTop: 5,
+        paddingHorizontal: 1,
     },
     headerText: {
         fontSize: 24,
         fontWeight: 'bold',
         marginBottom: 20,
+        marginTop: 1
     },
     image: {
         width: '60%',
-        height: undefined,
+        height: '25%',
         aspectRatio: 1,
         marginBottom: 1,
     },
     welcomeText: {
-        fontSize: 14,
+        fontSize: 12,
         color: 'black',
         marginBottom: 10,
         marginTop: 20,
@@ -182,10 +183,10 @@ const styles = StyleSheet.create({
     button: {
         backgroundColor: '#116bbf',
         paddingVertical: 15,
-        paddingHorizontal: 70,
+        //addingHorizontal: 70,
         marginBottom: 40,
         borderRadius: 5,
-        width: '150%',
+        width: 250,
         alignItems: 'center',
     },
     buttonText: {
@@ -194,11 +195,14 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     footerText: {
-        position: 'absolute',
-        bottom: 20,
-        left: '70%',
+        position: 'relative',
+        //bottom: 1,
+        marginTop: 100,
+        left: '20%',
         color: 'black',
         fontSize: 12,
+        fontWeight: 'bold'
+
     },
 });
 

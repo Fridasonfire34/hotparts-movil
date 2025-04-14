@@ -32,7 +32,7 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
         const fetchHotParts = async () => {
             setLoading(true);
             try {
-                const response = await axios.get('http://10.0.2.2:3000/api/Programacion');
+                const response = await axios.get('http://192.168.16.182:3000/api/Programacion');
                 setHotParts(response.data);
                 setFilteredHotParts(response.data);
             } catch (error) {
@@ -81,6 +81,38 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
         });
     };
 
+    const handleRecibirHotPart = async () => {
+        if (filteredHotParts.length > 0) {
+            try {
+                const folios = selectedItems.map(item => item.Folio);
+                const cantidades = selectedItems.map(item => item.Cantidad);
+                const ordenesCompra = selectedItems.map(item => item['Orden de Compra']);
+                const numerosParte = selectedItems.map(item => item['Numero de Parte']);
+                console.log("Folios seleccionados:", folios);
+
+                const response = await axios.post('http://192.168.16.182:3000/api/cantidadRecibo', {
+                    folios: folios,
+                    cantidades: cantidades,
+                    ordenesCompra: ordenesCompra,
+                    numerosParte: numerosParte,
+                    nomina: nomina
+                });
+
+                if (response.data.success) {
+                    setIsModalVisible(true);
+                    generarCodigoRecibo();
+                } else {
+                    Alert.alert('Error', response.data.message);
+                }
+            } catch (error) {
+                console.error('Error al Recibir Hot Part:', error);
+                Alert.alert('Error', 'Hubo un error al procesar la solicitud.');
+            }
+        } else {
+            Alert.alert('Error', 'No hay Hot Parts para Recibir.');
+        }
+    };
+
     const generarCodigoRecibo = async () => {
         const foliosSeleccionados = selectedItems.map(item => item.Folio);
         console.log("Nomina enviado:", nomina);
@@ -93,9 +125,9 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
 
         try {
             setLoading(true);
-            const response = await axios.post('http://10.0.2.2:3000/api/generarCodigo', { folios: foliosSeleccionados, nomina });
+            const response = await axios.post('http://192.168.16.182:3000/api/generarCodigo', { folios: foliosSeleccionados, nomina });
             const { codigoEntrega } = response.data;
-            setCodigoEntrega(codigoEntrega);
+            setCodigoEntrega(typeof codigoEntrega === 'string' ? codigoEntrega : codigoEntrega[0]);
             setLoading(false);
             setIsModalVisible(true);
         } catch (error) {
@@ -153,18 +185,26 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
                 ) : filteredHotParts.length === 0 ? (
                     <Text style={styles.NoResult}>No hay resultados</Text>
                 ) : (
-                    <FlatList
-                        data={filteredHotParts}
-                        renderItem={renderItem}
-                        keyExtractor={(item) => item.Folio.toString()}
-                    />
+                    <>
+                        <View style={[styles.tableRow, styles.headerRow]}>
+                            <Text style={styles.headerSecuencia}>Secuencia</Text>
+                            <Text style={styles.headerParte}>N. Parte</Text>
+                            <Text style={styles.headerQty}>Qty</Text>
+                        </View>
+
+                        <FlatList
+                            data={filteredHotParts}
+                            renderItem={renderItem}
+                            keyExtractor={(item) => item.Folio.toString()}
+                        />
+                    </>
                 )}
             </View>
 
             {selectedItems.length > 0 && (
                 <TouchableOpacity
                     style={[styles.entregarButton, selectedItems.length === 0 && styles.disabledButton]}
-                    onPress={generarCodigoRecibo}
+                    onPress={handleRecibirHotPart}
                     disabled={selectedItems.length === 0}
                 >
                     <Text style={styles.buttonText}>Recibir Hot Part</Text>
@@ -200,9 +240,44 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
+        flex: 0.999,
         justifyContent: 'flex-start',
         alignItems: 'center',
+        paddingVertical: 10,
+    },
+    headerRow: {
+        borderBottomWidth: 1,
+        borderColor: '#363636',
+        flexDirection: 'row',
+        paddingVertical: 10,
+        paddingHorizontal: 5,
+    },
+    cellText: {
+        fontSize: 13,
+        color: '#000',
+    },
+    headerSecuencia: {
+        flex: 1.2,
+        textAlign: 'left',
+        marginLeft: 15,
+        fontWeight: 'bold',
+        color: '#000',
+    },
+    headerParte: {
+        flex: 2,
+        textAlign: 'center',
+        fontWeight: 'bold',
+        color: '#000',
+    },
+    headerQty: {
+        flex: 1,
+        textAlign: 'right',
+        marginRight: 10,
+        fontWeight: 'bold',
+        color: '#000',
+    },
+    selectedRow: {
+        backgroundColor: '#cce7ff'
     },
     topContainer: {
         position: 'absolute',
@@ -215,22 +290,17 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: 'bold',
     },
-    selectedRow: {
-        backgroundColor: '#cce7ff'
-    },
-    disabledButton: {
-        backgroundColor: '#cccccc',
-    },
     userText: {
-        fontSize: 14,
+        fontSize: 12,
         color: 'black',
-        marginBottom: 10,
-        marginTop: 40,
+        marginBottom: 5,
+        marginTop: 5,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 100,
+        marginTop: 60,
+        marginBottom: 1
     },
     input: {
         width: 250,
@@ -312,6 +382,9 @@ const styles = StyleSheet.create({
     boldText: {
         fontWeight: 'bold',
         fontSize: 16,
+    },
+    disabledButton: {
+        backgroundColor: '#cccccc',
     },
 });
 

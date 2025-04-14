@@ -76,6 +76,11 @@ android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            outputFileName = "hotparts.apk"
+   }
+    }
 
     namespace "com.hotparts"
     defaultConfig {

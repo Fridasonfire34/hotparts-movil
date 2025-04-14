@@ -25,7 +25,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         try {
             setError('');
 
-            const response = await fetch('http://10.0.2.2:3000/api/login', {
+            const response = await fetch('http://192.168.16.182:3000/api/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -40,6 +40,8 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
                 const data = await response.json();
 
                 await AsyncStorage.setItem('user', JSON.stringify(data.user));
+                setNomina('');
+                setPassword('');
 
                 navigation.navigate('Menu');
             } else {
@@ -55,6 +57,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     return (
         <ImageBackground
             source={require('./assets/fondo1.jpg')}
+            resizeMode="cover"
             style={styles.container}
         >
             <Text style={styles.headerText}>Inicio de Sesión</Text>
@@ -90,12 +93,13 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
-        justifyContent: 'flex-start',
+        flex: 0.999,
+        //   justifyContent: 'flex-start',
         alignItems: 'center',
         paddingTop: 100,
         paddingHorizontal: 50,
-        backgroundColor: 'white'
+        backgroundColor: 'white',
+        position: 'relative'
     },
     headerText: {
         fontSize: 24,
@@ -140,11 +144,13 @@ const styles = StyleSheet.create({
         marginBottom: 40,
     },
     footerText: {
-        position: 'absolute',
-        bottom: 20,
-        left: '90%',
+        position: 'relative',
+        //bottom: 1,
+        marginTop: 175,
+        left: '30%',
         color: 'black',
         fontSize: 12,
+        fontWeight: 'bold'
     },
 });
 

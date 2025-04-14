@@ -33,7 +33,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
         const fetchHotParts = async () => {
             setLoading(true);
             try {
-                const response = await axios.get('http://10.0.2.2:3000/api/Programacion');
+                const response = await axios.get('http://192.168.16.182:3000/api/Programacion');
                 setHotParts(response.data);
                 setFilteredHotParts(response.data);
             } catch (error) {
@@ -92,7 +92,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
                 const numerosParte = selectedItems.map(item => item['Numero de Parte']);
                 console.log("Folios seleccionados:", folios);
 
-                const response = await axios.post('http://10.0.2.2:3000/api/cantidadTodo', {
+                const response = await axios.post('http://192.168.16.182:3000/api/cantidadTodo', {
                     folios: folios,
                     cantidades: cantidades,
                     ordenesCompra: ordenesCompra,
@@ -130,21 +130,21 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
                 return;
             }
 
-            const verifyResponse = await axios.post('http://10.0.2.2:3000/api/verificarCodigos', {
+            const verifyResponse = await axios.post('http://192.168.16.182:3000/api/verificarCodigos', {
                 folios: folios,
                 codigoEntrega: codigoEntrega,
                 nomina: nomina
             });
 
             if (verifyResponse.data.success) {
-                const reciboResponse = await axios.post('http://10.0.2.2:3000/api/reciboProduccion', {
+                const reciboResponse = await axios.post('http://192.168.16.182:3000/api/reciboProduccion', {
                     folios: folios,
                     nomina: nomina,
                 });
 
                 if (reciboResponse.data.success) {
                     try {
-                        const guardarMovimientoResponse = await axios.post('http://10.0.2.2:3000/api/guardarMovimiento', {
+                        const guardarMovimientoResponse = await axios.post('http://192.168.16.182:3000/api/guardarMovimiento', {
                             folios: folios,
                             nomina: nomina,
                         });
@@ -162,7 +162,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
                         {
                             text: 'OK',
                             onPress: async () => {
-                                const updateResponse = await axios.get('http://10.0.2.2:3000/api/Programacion');
+                                const updateResponse = await axios.get('http://192.168.16.182:3000/api/Programacion');
                                 console.log("Update Response:", updateResponse);
                                 setHotParts(updateResponse.data);
                                 setFilteredHotParts(updateResponse.data);
@@ -180,7 +180,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
             console.error('Axios Error:', error.response ? error.response.data : error.message);
 
             try {
-                const eliminarResponse = await axios.post('http://10.0.2.2:3000/api/eliminarCodigos', {});
+                const eliminarResponse = await axios.post('http://192.168.16.182:3000/api/eliminarCodigos', {});
 
                 if (eliminarResponse.data.success) {
                     console.log('Códigos eliminados correctamente');
@@ -223,7 +223,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
                     style={styles.input}
                     value={searchText}
                     onChangeText={handleSearch}
-                    placeholder="Buscar Pieza"
+                    placeholder="Buscar Hot Part"
                 />
             </View>
 
@@ -233,13 +233,22 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
                 ) : filteredHotParts.length === 0 ? (
                     <Text style={styles.NoResult}>No hay resultados</Text>
                 ) : (
-                    <FlatList
-                        data={filteredHotParts}
-                        renderItem={renderItem}
-                        keyExtractor={(item) => item.Folio.toString()}
-                    />
+                    <>
+                        <View style={[styles.tableRow, styles.headerRow]}>
+                            <Text style={styles.headerSecuencia}>Secuencia</Text>
+                            <Text style={styles.headerParte}>N. Parte</Text>
+                            <Text style={styles.headerQty}>Qty</Text>
+                        </View>
+
+                        <FlatList
+                            data={filteredHotParts}
+                            renderItem={renderItem}
+                            keyExtractor={(item) => item.Folio.toString()}
+                        />
+                    </>
                 )}
             </View>
+
 
             {selectedItems.length > 0 && (
                 <TouchableOpacity
@@ -291,10 +300,41 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
+        flex: 0.999,
         justifyContent: 'flex-start',
         alignItems: 'center',
-
+        paddingVertical: 10,
+    },
+    headerRow: {
+        borderBottomWidth: 1,
+        borderColor: '#363636',
+        flexDirection: 'row',
+        paddingVertical: 10,
+        paddingHorizontal: 5,
+    },
+    cellText: {
+        fontSize: 13,
+        color: '#000',
+    },
+    headerSecuencia: {
+        flex: 1.2,
+        textAlign: 'left',
+        marginLeft: 15,
+        fontWeight: 'bold',
+        color: '#000',
+    },
+    headerParte: {
+        flex: 2,
+        textAlign: 'center',
+        fontWeight: 'bold',
+        color: '#000',
+    },
+    headerQty: {
+        flex: 1,
+        textAlign: 'right',
+        marginRight: 10,
+        fontWeight: 'bold',
+        color: '#000',
     },
     selectedRow: {
         backgroundColor: '#cce7ff'
@@ -311,31 +351,27 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     userText: {
-        fontSize: 14,
+        fontSize: 12,
         color: 'black',
         marginBottom: 10,
-        marginTop: 40,
+        marginTop: 5,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 100,
+        marginTop: 70,
+        marginBottom: 1
     },
     input: {
         width: 250,
-        height: 40,
+        height: 45,
         borderColor: '#c4c4c4',
         backgroundColor: '#cfcfcf',
         borderWidth: 1,
         paddingLeft: 10,
         marginRight: 10,
         fontSize: 16,
-    },
-    searchButton: {
-        backgroundColor: '#0e5699',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 5,
+        color: 'black'
     },
     buttonText: {
         color: 'white',

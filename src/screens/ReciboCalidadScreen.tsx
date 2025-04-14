@@ -36,7 +36,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
         const fetchHotParts = async () => {
             setLoading(true);
             try {
-                const response = await axios.get('http://10.0.2.2:3000/api/Produccion');
+                const response = await axios.get('http://192.168.16.182:3000/api/Produccion');
                 setHotParts(response.data);
                 setFilteredHotParts(response.data);
             } catch (error) {
@@ -101,7 +101,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
             const numerosParte = rowsWithQuantityOne.map((item) => item['Numero de Parte']);
 
             try {
-                const response = await axios.post('http://10.0.2.2:3000/api/cantidadRecibo', {
+                const response = await axios.post('http://192.168.16.182:3000/api/cantidadRecibo', {
                     folios,
                     cantidades,
                     ordenesCompra,
@@ -141,7 +141,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
         }
 
         try {
-            const response = await axios.post('http://10.0.2.2:3000/api/cantidadRecibo', {
+            const response = await axios.post('http://192.168.16.182:3000/api/cantidadRecibo', {
                 folios: [item.Folio],
                 cantidades: [quantityToDeliver],
                 nomina: nomina,
@@ -183,13 +183,13 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
 
         try {
             setLoading(true);
-            const response = await axios.post('http://10.0.2.2:3000/api/generarCodigo', {
+            const response = await axios.post('http://192.168.16.182:3000/api/generarCodigo', {
                 folios: foliosSeleccionados,
                 nomina
             });
 
             const { codigoEntrega } = response.data;
-            setCodigoEntrega(codigoEntrega);
+            setCodigoEntrega(typeof codigoEntrega === 'string' ? codigoEntrega : codigoEntrega[0]);
             setLoading(false);
             setIsModalVisible(true);
             setFoliosCantidadUno([]); // Limpiar después de generar código
@@ -258,11 +258,19 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
                 ) : filteredHotParts.length === 0 ? (
                     <Text style={styles.NoResult}>No hay resultados</Text>
                 ) : (
-                    <FlatList
-                        data={filteredHotParts}
-                        renderItem={renderItem}
-                        keyExtractor={(item) => item.Folio.toString()}
-                    />
+                    <>
+                        <View style={[styles.tableRow, styles.headerRow]}>
+                            <Text style={styles.headerSecuencia}>Secuencia</Text>
+                            <Text style={styles.headerParte}>N. Parte</Text>
+                            <Text style={styles.headerQty}>Qty</Text>
+                        </View>
+
+                        <FlatList
+                            data={filteredHotParts}
+                            renderItem={renderItem}
+                            keyExtractor={(item) => item.Folio.toString()}
+                        />
+                    </>
                 )}
             </View>
 
@@ -344,9 +352,44 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
+        flex: 0.999,
         justifyContent: 'flex-start',
         alignItems: 'center',
+        paddingVertical: 10,
+    },
+    headerRow: {
+        borderBottomWidth: 1,
+        borderColor: '#363636',
+        flexDirection: 'row',
+        paddingVertical: 10,
+        paddingHorizontal: 5,
+    },
+    cellText: {
+        fontSize: 13,
+        color: '#000',
+    },
+    headerSecuencia: {
+        flex: 1.2,
+        textAlign: 'left',
+        marginLeft: 15,
+        fontWeight: 'bold',
+        color: '#000',
+    },
+    headerParte: {
+        flex: 2,
+        textAlign: 'center',
+        fontWeight: 'bold',
+        color: '#000',
+    },
+    headerQty: {
+        flex: 1,
+        textAlign: 'right',
+        marginRight: 10,
+        fontWeight: 'bold',
+        color: '#000',
+    },
+    selectedRow: {
+        backgroundColor: '#cce7ff'
     },
     topContainer: {
         position: 'absolute',
@@ -355,26 +398,25 @@ const styles = StyleSheet.create({
         right: 20,
         alignItems: 'flex-start',
     },
+    boldText: {
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
     text: {
         fontSize: 20,
         fontWeight: 'bold',
     },
-    selectedRow: {
-        backgroundColor: '#cce7ff'
-    },
-    disabledButton: {
-        backgroundColor: '#cccccc',
-    },
     userText: {
-        fontSize: 14,
+        fontSize: 12,
         color: 'black',
-        marginBottom: 10,
-        marginTop: 40,
+        marginBottom: 5,
+        marginTop: 5,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 100,
+        marginTop: 60,
+        marginBottom: 1
     },
     input: {
         width: 250,
@@ -452,10 +494,6 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         paddingHorizontal: 20,
         borderRadius: 5,
-    },
-    boldText: {
-        fontWeight: 'bold',
-        fontSize: 16,
     },
     buttonsContainer: {
         flexDirection: 'row',
