@@ -218,8 +218,14 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
         }));
     };
 
-    const handleConfirmar = () => {
-        setIsModalVisible(false);
+    const handleConfirmar = async () => {
+        try {
+            setIsModalVisible(false);
+            const response = await axios.get('http://192.168.16.182:3000/api/Produccion');
+        } catch (error) {
+            console.error('Error al obtener datos de calidad:', error);
+            Alert.alert('Error', 'No se pudieron actualizar los datos de calidad.');
+        }
     };
 
     const renderItem = ({ item }: { item: HotPart }) => {
@@ -242,7 +248,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
             <View style={styles.topContainer}>
                 <Text style={styles.userText}>{nomina}    {nombre}     {area}</Text>
             </View>
-
+            <Text style={styles.Screen}>Recibir Hot Parts</Text>
             <View style={styles.inputContainer}>
                 <TextInput
                     style={styles.input}
@@ -393,10 +399,10 @@ const styles = StyleSheet.create({
     },
     topContainer: {
         position: 'absolute',
-        top: 20,
+        top: 50,
         left: 20,
         right: 20,
-        alignItems: 'flex-start',
+        alignItems: 'center',
     },
     boldText: {
         fontWeight: 'bold',
@@ -415,7 +421,7 @@ const styles = StyleSheet.create({
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 60,
+        marginTop: 15,
         marginBottom: 1
     },
     input: {
@@ -507,7 +513,15 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         borderRadius: 5,
         width: '40%',
-    }
+    },
+    Screen: {
+        fontSize: 14,
+        color: 'black',
+        marginBottom: 5,
+        marginTop: 75,
+        textAlign: 'center',
+        backgroundColor: '#3498db'
+    },
 });
 
 export default ReciboCalidadScreen;

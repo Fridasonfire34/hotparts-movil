@@ -4,27 +4,26 @@ import axios from 'axios';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from './App';
 
-type EntregaCalidadScreenRouteProp = RouteProp<RootStackParamList, 'EntregaCalidad'>;
+type ReordenScreenRouteProp = RouteProp<RootStackParamList, 'ReordenScreen'>;
 
 interface Props {
-    route: EntregaCalidadScreenRouteProp;
+    route: ReordenScreenRouteProp;
 }
 
 interface HotPart {
     Folio: string;
     ['Orden de Compra']: number;
     ['Numero de Parte']: string;
-    ['Cantidad Faltante']: number;
+    ['Cantidad Recibida']: number;
 }
 
-const EntregaCalidadScreen: React.FC<Props> = ({ route }) => {
+const ReordenScreen: React.FC<Props> = ({ route }) => {
     const { nomina, nombre, area } = route?.params || {};
 
     const [hotParts, setHotParts] = useState<HotPart[]>([]);
     const [filteredHotParts, setFilteredHotParts] = useState<HotPart[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [isModalVisible, setIsModalVisible] = useState(false);
-    const [codigoEntrega, setCodigoEntrega] = useState<string>('');
     const [selectedItems, setSelectedItems] = useState<HotPart[]>([]);
     const [searchText, setSearchText] = useState<string>('');
     const [quantitiesToDeliver, setQuantitiesToDeliver] = useState<Record<string, number>>({});
@@ -32,6 +31,10 @@ const EntregaCalidadScreen: React.FC<Props> = ({ route }) => {
     const [isQuantityModalVisible, setIsQuantityModalVisible] = useState(false);
     const [foliosCantidadUno, setFoliosCantidadUno] = useState<string[]>([]);
     const [isSearchActive, setIsSearchActive] = useState(false);
+    const [isComentarioModalVisible, setIsComentarioModalVisible] = useState(false);
+    const [comentario, setComentario] = useState('');
+    const [showComentarioPrompt, setShowComentarioPrompt] = useState(false);
+    const [mostrarAlertaSeleccionUnica, setMostrarAlertaSeleccionUnica] = useState(true);
 
 
     useEffect(() => {
@@ -63,6 +66,15 @@ const EntregaCalidadScreen: React.FC<Props> = ({ route }) => {
         fetchHotParts();
     }, []);
 
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setMostrarAlertaSeleccionUnica(true);
+        }, 500); // pequeña pausa para evitar interferencia visual
+
+        return () => clearTimeout(timer);
+    }, []);
+
+
     const handleSearch = (text: string) => {
         setSearchText(text);
 
@@ -71,7 +83,7 @@ const EntregaCalidadScreen: React.FC<Props> = ({ route }) => {
 
         const filtered = hotParts.filter(
             (item) =>
-                item['Cantidad Faltante'] > 0 &&
+                item['Cantidad Recibida'] > 0 &&
                 item['Numero de Parte'].toLowerCase().includes(trimmedText)
         );
 
@@ -81,30 +93,33 @@ const EntregaCalidadScreen: React.FC<Props> = ({ route }) => {
 
     const toggleSelectItem = (item: HotPart) => {
         setSelectedItems((prevSelectedItems) => {
-            if (prevSelectedItems.some((selectedItem) => selectedItem.Folio === item.Folio)) {
-                return prevSelectedItems.filter((selectedItem) => selectedItem.Folio !== item.Folio);
+            const isAlreadySelected = prevSelectedItems.some((selectedItem) => selectedItem.Folio === item.Folio);
+
+            if (isAlreadySelected) {
+                return [];
+            } else {
+                return [item];
             }
-            return [...prevSelectedItems, item];
         });
     };
 
     const handleRecibirHotPart = async () => {
         const rowsWithQuantityOne = selectedItems.filter(
-            (item) => item['Cantidad Faltante'] === 1
+            (item) => item['Cantidad Recibida'] === 1
         );
 
         const rowsWithQuantityGreaterThanOne = selectedItems.filter(
-            (item) => item['Cantidad Faltante'] > 1
+            (item) => item['Cantidad Recibida'] > 1
         );
 
         if (rowsWithQuantityOne.length > 0) {
             const folios = rowsWithQuantityOne.map((item) => item.Folio);
-            const cantidades = rowsWithQuantityOne.map((item) => item['Cantidad Faltante']);
+            const cantidades = rowsWithQuantityOne.map((item) => item['Cantidad Recibida']);
             const ordenesCompra = rowsWithQuantityOne.map((item) => item['Orden de Compra']);
             const numerosParte = rowsWithQuantityOne.map((item) => item['Numero de Parte']);
 
             try {
-                const response = await axios.post('http://192.168.16.182:3000/api/cantidadEntrega', {
+                const response = await axios.post('http://192.168.16.182:3000/api/cantidadReorden', {
                     folios,
                     cantidades,
                     ordenesCompra,
@@ -115,6 +130,8 @@ const EntregaCalidadScreen: React.FC<Props> = ({ route }) => {
                 if (response.data.success) {
                     console.log('Filas con cantidad 1 procesadas correctamente.');
                     setFoliosCantidadUno(folios);
+                    setSelectedItems(rowsWithQuantityOne);
+                    setShowComentarioPrompt(true); // Preguntar si se desea agregar comentario
                 } else {
                     Alert.alert('Error', response.data.message);
                 }
@@ -128,22 +145,23 @@ const EntregaCalidadScreen: React.FC<Props> = ({ route }) => {
             setSelectedItems(rowsWithQuantityGreaterThanOne);
             setCurrentItemIndex(0);
             setIsQuantityModalVisible(true);
-        } else {
-            setIsModalVisible(true);
+        }
+
+        if (rowsWithQuantityOne.length === 0 && rowsWithQuantityGreaterThanOne.length === 0) {
+            Alert.alert('Aviso', 'No se seleccionaron piezas con cantidad válida.');
         }
     };
-
     const handleQuantityConfirm = async () => {
         const item = selectedItems[currentItemIndex];
         const quantityToDeliver = quantitiesToDeliver[item.Folio];
 
-        if (!quantityToDeliver || quantityToDeliver <= 0 || quantityToDeliver > item['Cantidad Faltante']) {
+        if (!quantityToDeliver || quantityToDeliver <= 0 || quantityToDeliver > item['Cantidad Recibida']) {
             Alert.alert('Error', `La cantidad ingresada para el Hot Part ${item['Numero de Parte']} debe ser mayor a 0 y menor o igual a la cantidad disponible.`);
             return;
         }
 
         try {
-            const response = await axios.post('http://192.168.16.182:3000/api/cantidadEntrega', {
+            const response = await axios.post('http://192.168.16.182:3000/api/cantidadReorden', {
                 folios: [item.Folio],
                 cantidades: [quantityToDeliver],
                 nomina: nomina,
@@ -161,91 +179,107 @@ const EntregaCalidadScreen: React.FC<Props> = ({ route }) => {
                 setCurrentItemIndex(currentItemIndex + 1);
             } else {
                 setIsQuantityModalVisible(false);
-                setIsModalVisible(true);
+                setShowComentarioPrompt(true);
             }
+
         } catch (error) {
             console.error('Error al enviar la cantidad:', error);
             Alert.alert('Error', 'Hubo un error al enviar la cantidad.');
         }
     };
-
-    const handleVerificarCodigos = async () => {
-        if (!codigoEntrega) {
-            Alert.alert('Error', 'El código de recibo es incorrecto');
-            return;
-        }
+    const handleConfirmarComentario = async () => {
         try {
-            const foliosConCantidadMayorA1 = selectedItems.map(item => item.Folio);
-            const foliosSeleccionados = [...foliosCantidadUno, ...foliosConCantidadMayorA1];
-            setLoading(true);
+            const foliosSeleccionados = selectedItems.map(item => item.Folio);
 
-            if (!foliosSeleccionados || foliosSeleccionados.length === 0) {
-                Alert.alert('Error', 'No se encontró el folio');
-                setLoading(false);
-                return;
-            }
-
-            const verifyResponse = await axios.post('http://192.168.16.182:3000/api/verificarCodigos', {
+            const response = await axios.post('http://192.168.16.182:3000/api/ComentariosReorden', {
                 folios: foliosSeleccionados,
-                codigoEntrega: codigoEntrega,
+                comentario,
                 nomina: nomina
             });
 
-            if (verifyResponse.data.success) {
-                const reciboResponse = await axios.post('http://192.168.16.182:3000/api/reciboEmbarques', {
+            if (response.data.success) {
+                await axios.post('http://192.168.16.182:3000/api/estatusReorden', {
                     folios: foliosSeleccionados,
-                    nomina: nomina,
+                    nomina: nomina
                 });
 
-                if (reciboResponse.data.success) {
-                    const guardarMovimientoResponse = await axios.post('http://192.168.16.182:3000/api/guardarMovimiento', {
-                        folios: foliosSeleccionados,
-                        nomina: nomina,
-                    });
+                await axios.post('http://192.168.16.182:3000/api/guardarMovimientoReorden', {
+                    folios: foliosSeleccionados,
+                    nomina: nomina
+                });
 
-                    if (guardarMovimientoResponse.data.success) {
-                        console.log('Movimiento guardado correctamente');
-                    } else {
-                        console.error('Error al guardar el movimiento:', guardarMovimientoResponse.data.message);
+                Alert.alert('Éxito', 'Comentario registrado correctamente.', [
+                    {
+                        text: 'OK',
+                        onPress: async () => {
+                            const updateResponse = await axios.get('http://192.168.16.182:3000/api/calidad');
+                            setHotParts(updateResponse.data);
+                            setFilteredHotParts(updateResponse.data);
+                            setSelectedItems([]);
+                            setComentario('');
+                        }
                     }
+                ]);
+                setIsComentarioModalVisible(false);
+            } else {
+                Alert.alert('Error', response.data.message);
+            }
+        } catch (error) {
+            console.error('Error al guardar comentario:', error);
+            Alert.alert('Error', 'Hubo un error al guardar el comentario.');
+        }
+    };
 
-                    Alert.alert('Éxito', 'Estatus actualizado a Embarques', [
+
+    const handleReordenSinComentario = async () => {
+        const folios = selectedItems.map(item => item.Folio);
+
+        if (folios.length === 0) {
+            Alert.alert('Aviso', 'No hay piezas seleccionadas para registrar.');
+            return;
+        }
+
+        try {
+            const response = await axios.post('http://192.168.16.182:3000/api/estatusReorden', {
+                folios,
+                nomina
+            });
+
+            if (response.data.success) {
+                Alert.alert(
+                    'Registro exitoso',
+                    'Pieza registrada para reorden.',
+                    [
                         {
                             text: 'OK',
                             onPress: async () => {
+                                try {
+                                    const guardarMovimientoResponse = await axios.post('http://192.168.16.182:3000/api/guardarMovimientoReorden', {
+                                        folios: folios,
+                                        nomina: nomina
+                                    });
+                                    console.log('Movimiento guardado:', guardarMovimientoResponse.data);
+                                } catch (error) {
+                                    console.error('Error al guardar movimiento de reorden:', error);
+                                }
+
                                 const updateResponse = await axios.get('http://192.168.16.182:3000/api/calidad');
                                 setHotParts(updateResponse.data);
                                 setFilteredHotParts(updateResponse.data);
+                                setSelectedItems([]);
                             }
                         }
-                    ]);
-                    setIsModalVisible(false);
-                } else {
-                    Alert.alert('Error', reciboResponse.data.message || 'Error desconocido al actualizar el estatus');
-                }
+                    ]
+                );
             } else {
-                Alert.alert('Error', verifyResponse.data.message || 'Error desconocido al verificar los códigos');
+                Alert.alert('Error', response.data.message);
             }
         } catch (error) {
-            console.error('Axios Error:', error.response ? error.response.data : error.message);
-
-            try {
-                const eliminarResponse = await axios.post('http://192.168.16.182:3000/api/eliminarCodigos', {});
-
-                if (eliminarResponse.data.success) {
-                    console.log('Códigos eliminados correctamente');
-                } else {
-                    console.error('Error al eliminar los códigos:', eliminarResponse.data.message);
-                }
-            } catch (eliminarError) {
-                console.error('Error al llamar a la API eliminarCodigos:', eliminarError.message);
-            }
-
-            Alert.alert('Error', 'Hubo un error al verificar los códigos: El código de entrega no coincide para las piezas seleccionadas');
-        } finally {
-            setLoading(false);
+            console.error('Error al registrar sin comentario:', error);
+            Alert.alert('Error', 'Error al registrar sin comentario.');
         }
     };
+
 
     const handleQuantityChange = (text: string) => {
         const item = selectedItems[currentItemIndex];
@@ -271,18 +305,36 @@ const EntregaCalidadScreen: React.FC<Props> = ({ route }) => {
             >
                 <Text>{String(item['Orden de Compra'])}</Text>
                 <Text>{String(item['Numero de Parte'])}</Text>
-                <Text>{String(item['Cantidad Faltante'])}</Text>
+                <Text>{String(item['Cantidad Recibida'])}</Text>
             </TouchableOpacity>
         );
     };
 
     return (
         <ImageBackground source={require('./assets/fondo2.jpg')} style={styles.container}>
+            <Modal
+                transparent={true}
+                animationType="fade"
+                visible={mostrarAlertaSeleccionUnica}
+                onRequestClose={() => setMostrarAlertaSeleccionUnica(false)}
+            >
+                <View style={styles.modalBackground}>
+                    <View style={styles.modalContainer}>
+                        <Text style={styles.modalTitle}>Solo puedes seleccionar un Hot Part a la vez para realizar la reorden</Text>
+                        <TouchableOpacity
+                            style={styles.confirmButton}
+                            onPress={() => setMostrarAlertaSeleccionUnica(false)}
+                        >
+                            <Text style={styles.buttonText}>Entendido</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
             <View style={styles.topContainer}>
                 <Text style={styles.userText}>{nomina}    {nombre}     {area}</Text>
             </View>
-            <Text style={styles.Screen}>Entregar a Embarques</Text>
-
+            <Text style={styles.Screen}>Reordenes</Text>
             <View style={styles.inputContainer}>
                 <TextInput
                     style={styles.input}
@@ -320,7 +372,7 @@ const EntregaCalidadScreen: React.FC<Props> = ({ route }) => {
                     onPress={handleRecibirHotPart}
                     disabled={selectedItems.length === 0}
                 >
-                    <Text style={styles.buttonText}>Entregar Hot Part</Text>
+                    <Text style={styles.buttonText}>Reordenar Hot Part</Text>
                 </TouchableOpacity>
             )}
             <Modal
@@ -334,14 +386,14 @@ const EntregaCalidadScreen: React.FC<Props> = ({ route }) => {
                         {selectedItems.length > 0 && currentItemIndex < selectedItems.length && (
                             <View key={selectedItems[currentItemIndex].Folio}>
                                 <Text style={styles.modalTitle}>
-                                    El Hot Part: {selectedItems[currentItemIndex]['Numero de Parte']} contiene {selectedItems[currentItemIndex]['Cantidad Faltante']} piezas. ¿Cuántas se van a entregar?
+                                    El Hot Part: {selectedItems[currentItemIndex]['Numero de Parte']} contiene {selectedItems[currentItemIndex]['Cantidad Recibida']} piezas. ¿Cuántas se van a Reordenar?
                                 </Text>
                                 <TextInput
                                     style={styles.input}
                                     value={String(quantitiesToDeliver[selectedItems[currentItemIndex].Folio] || '')}
                                     onChangeText={handleQuantityChange}
                                     keyboardType="numeric"
-                                    placeholder="Piezas a Recibir"
+                                    placeholder="Piezas a Reordenar"
                                 />
                                 <View style={styles.buttonsContainer}>
                                     <TouchableOpacity
@@ -364,30 +416,66 @@ const EntregaCalidadScreen: React.FC<Props> = ({ route }) => {
             </Modal>
             <Modal
                 transparent={true}
-                animationType="slide"
-                visible={isModalVisible}
-                onRequestClose={() => setIsModalVisible(false)}
+                animationType="fade"
+                visible={showComentarioPrompt}
+                onRequestClose={() => setShowComentarioPrompt(false)}
             >
                 <View style={styles.modalBackground}>
                     <View style={styles.modalContainer}>
-                        <Text style={styles.modalTitle}>Ingresa el código de Recibo</Text>
+                        <Text style={styles.modalTitle}>¿Deseas agregar un comentario?</Text>
+                        <View style={styles.buttonsContainer}>
+                            <TouchableOpacity
+                                style={styles.confirmButton}
+                                onPress={() => {
+                                    setShowComentarioPrompt(false);
+                                    setIsComentarioModalVisible(true);
+                                }}
+                            >
+                                <Text style={styles.buttonText}>Sí</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.cancelButton}
+                                onPress={() => {
+                                    handleReordenSinComentario();
+                                }}
+                            >
+                                <Text style={styles.buttonText}>No</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            <Modal
+                transparent={true}
+                animationType="slide"
+                visible={isComentarioModalVisible}
+                onRequestClose={() => setIsComentarioModalVisible(false)}
+            >
+                <View style={styles.modalBackground}>
+                    <View style={styles.modalContainer}>
+                        <Text style={styles.modalTitle}>Agregar Comentario</Text>
                         <TextInput
-                            style={styles.input}
-                            placeholder="Ingresa el código"
-                            value={codigoEntrega}
-                            onChangeText={setCodigoEntrega}
-                            keyboardType="default"
+                            style={styles.inputComentario}
+                            placeholder="Escribe un comentario"
+                            value={comentario}
+                            onChangeText={setComentario}
+                            multiline={true}
+                            numberOfLines={4}
                         />
                         <View style={styles.buttonsContainer}>
                             <TouchableOpacity
                                 style={styles.confirmButton}
-                                onPress={handleVerificarCodigos}
+                                onPress={handleConfirmarComentario}
                             >
                                 <Text style={styles.buttonText}>Confirmar</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={styles.cancelButton}
-                                onPress={() => setIsModalVisible(false)}
+                                onPress={() => {
+                                    setIsComentarioModalVisible(false);
+                                    setIsQuantityModalVisible(true);
+                                }}
                             >
                                 <Text style={styles.buttonText}>Cancelar</Text>
                             </TouchableOpacity>
@@ -395,6 +483,7 @@ const EntregaCalidadScreen: React.FC<Props> = ({ route }) => {
                     </View>
                 </View>
             </Modal>
+
         </ImageBackground>
     );
 };
@@ -413,6 +502,14 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         paddingVertical: 10,
         paddingHorizontal: 5,
+    },
+    Screen: {
+        fontSize: 14,
+        color: 'black',
+        marginBottom: 5,
+        marginTop: 75,
+        textAlign: 'center',
+        backgroundColor: '#3498db'
     },
     cellText: {
         fontSize: 13,
@@ -462,14 +559,6 @@ const styles = StyleSheet.create({
         marginBottom: 5,
         marginTop: 35,
     },
-    Screen: {
-        fontSize: 14,
-        color: 'black',
-        marginBottom: 5,
-        marginTop: 75,
-        textAlign: 'center',
-        backgroundColor: '#3498db'
-    },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -487,6 +576,17 @@ const styles = StyleSheet.create({
         fontSize: 16,
         marginBottom: 5
     },
+    inputComentario: {
+        width: 270,
+        height: 100,
+        borderColor: '#c4c4c4',
+        backgroundColor: '#cfcfcf',
+        borderWidth: 1,
+        paddingLeft: 10,
+        marginRight: 10,
+        fontSize: 16,
+        marginBottom: 5
+    },
     buttonText: {
         color: 'white',
         fontSize: 16,
@@ -496,7 +596,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#cccccc',
     },
     tableContainer: {
-        marginTop: 20,
+        marginTop: 10,
         width: '90%',
     },
     tableRow: {
@@ -571,4 +671,4 @@ const styles = StyleSheet.create({
         width: '48%',
     }
 });
-export default EntregaCalidadScreen;
+export default ReordenScreen;

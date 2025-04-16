@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
         top: 20,
         left: 20,
         right: 20,
-        alignItems: 'flex-start',
+        alignItems: 'center',
     },
     text: {
         fontSize: 20,
@@ -354,12 +354,12 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: 'black',
         marginBottom: 10,
-        marginTop: 5,
+        marginTop: 35,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 70,
+        marginTop: 75,
         marginBottom: 1
     },
     input: {

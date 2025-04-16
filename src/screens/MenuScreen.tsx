@@ -12,6 +12,7 @@ type RootStackParamList = {
     ReciboProduccion: { nomina: string; nombre: string; area: string };
     ReciboCalidad: { nomina: string; nombre: string; area: string };
     ReciboEmbarques: { nomina: string; nombre: string; area: string };
+    ReordenScreen: { nomina: string; nombre: string; area: string };
 };
 
 type MenuScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Menu'>;
@@ -74,6 +75,19 @@ const MenuScreen: React.FC<Props> = ({ navigation }) => {
         }
     };
 
+    const handleReorden = () => {
+        const routeMap: { [key: string]: string } = {
+            'Calidad': 'ReordenScreen'
+        };
+        if (routeMap[user.Area]) {
+            navigation.navigate(routeMap[user.Area], {
+                nomina: user.Nomina,
+                nombre: user.Nombre,
+                area: user.Area,
+            });
+        }
+    };
+
     return (
         <ImageBackground
             source={require('./assets/fondo2.jpg')}
@@ -122,6 +136,12 @@ const MenuScreen: React.FC<Props> = ({ navigation }) => {
                             onPress={handleRecibo}
                         >
                             <Text style={styles.buttonText}>Recibir</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.button}
+                            onPress={handleReorden}
+                        >
+                            <Text style={styles.buttonText}>Reorden</Text>
                         </TouchableOpacity>
                     </>
                 )}
@@ -173,7 +193,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: 'black',
         marginBottom: 10,
-        marginTop: 20,
+        marginTop: 50,
     },
     loadingText: {
         fontSize: 18,
@@ -197,7 +217,7 @@ const styles = StyleSheet.create({
     footerText: {
         position: 'relative',
         //bottom: 1,
-        marginTop: 100,
+        marginTop: 80,
         left: '20%',
         color: 'black',
         fontSize: 12,

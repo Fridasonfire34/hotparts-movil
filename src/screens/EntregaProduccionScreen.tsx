@@ -281,7 +281,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
             <View style={styles.topContainer}>
                 <Text style={styles.userText}>{nomina}    {nombre}     {area}</Text>
             </View>
-
+            <Text style={styles.Screen}>Entregar Hot Parts</Text>
             <View style={styles.inputContainer}>
                 <TextInput
                     style={styles.input}
@@ -418,6 +418,14 @@ const styles = StyleSheet.create({
         fontSize: 13,
         color: '#000',
     },
+    Screen: {
+        fontSize: 14,
+        color: 'black',
+        marginBottom: 5,
+        marginTop: 75,
+        textAlign: 'center',
+        backgroundColor: '#3498db'
+    },
     headerSecuencia: {
         flex: 1.2,
         textAlign: 'left',
@@ -446,7 +454,7 @@ const styles = StyleSheet.create({
         top: 20,
         left: 20,
         right: 20,
-        alignItems: 'flex-start',
+        alignItems: 'center',
     },
     boldText: {
         fontWeight: 'bold',
@@ -460,12 +468,12 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: 'black',
         marginBottom: 5,
-        marginTop: 5,
+        marginTop: 35,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 60,
+        marginTop: 15,
         marginBottom: 1
     },
     input: {

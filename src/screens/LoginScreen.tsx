@@ -93,7 +93,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
 const styles = StyleSheet.create({
     container: {
-        flex: 0.999,
+        flex: 1,
         //   justifyContent: 'flex-start',
         alignItems: 'center',
         paddingTop: 100,
@@ -146,10 +146,10 @@ const styles = StyleSheet.create({
     footerText: {
         position: 'relative',
         //bottom: 1,
-        marginTop: 175,
+        marginTop: 255,
         left: '30%',
         color: 'black',
-        fontSize: 12,
+        fontSize: 14,
         fontWeight: 'bold'
     },
 });

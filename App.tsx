@@ -9,6 +9,7 @@ import EntregaProduccionScreen from './src/screens/EntregaProduccionScreen';
 import ReciboProduccionScreen from './src/screens/ReciboProduccionScreen';
 import ReciboCalidadScreen from './src/screens/ReciboCalidadScreen';
 import ReciboEmbarquesScreen from './src/screens/ReciboEmbarquesScreen';
+import ReordenScreen from './src/screens/ReordenScreen';
 
 type RootStackParamList = {
   Login: undefined;
@@ -19,6 +20,7 @@ type RootStackParamList = {
   ReciboProduccion: { nomina: string; nombre: string; area: string };
   ReciboCalidad: { nomina: string; nombre: string; area: string };
   ReciboEmbarques: { nomina: string; nombre: string; area: string };
+  ReordenScreen: { nomina: string; nombre: string; area: string };
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -60,6 +62,11 @@ const App: React.FC = () => {
         <Stack.Screen
           name="ReciboCalidad"
           component={ReciboCalidadScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ReordenScreen"
+          component={ReordenScreen}
           options={{ headerShown: false }}
         />
         <Stack.Screen
