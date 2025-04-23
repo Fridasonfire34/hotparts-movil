@@ -387,12 +387,6 @@ const styles = StyleSheet.create({
         fontSize: 16,
         marginBottom: 20,
     },
-    confirmButton: {
-        backgroundColor: '#0e5699',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 5,
-    },
     boldText: {
         fontWeight: 'bold',
         fontSize: 16,
@@ -400,6 +394,20 @@ const styles = StyleSheet.create({
     disabledButton: {
         backgroundColor: '#cccccc',
     },
+    confirmButton: {
+        backgroundColor: '#0e5699',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 5,
+        width: '48%',
+    },
+    cancelButton: {
+        backgroundColor: '#c4c4c4',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 5,
+        width: '48%',
+    }
 });
 
 export default ReciboProduccionScreen;

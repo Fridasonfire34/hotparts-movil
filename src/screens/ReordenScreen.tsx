@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: 'black',
         marginBottom: 5,
-        marginTop: 75,
+        marginTop: 50,
         textAlign: 'center',
         backgroundColor: '#3498db'
     },
@@ -566,7 +566,7 @@ const styles = StyleSheet.create({
         marginBottom: 1
     },
     input: {
-        width: 270,
+        width: 250,
         height: 40,
         borderColor: '#c4c4c4',
         backgroundColor: '#cfcfcf',

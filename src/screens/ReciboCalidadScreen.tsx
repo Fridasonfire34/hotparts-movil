@@ -500,6 +500,7 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         paddingHorizontal: 20,
         borderRadius: 5,
+        width: '48%',
     },
     buttonsContainer: {
         flexDirection: 'row',
@@ -512,7 +513,7 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         paddingHorizontal: 20,
         borderRadius: 5,
-        width: '40%',
+        width: '48%',
     },
     Screen: {
         fontSize: 14,
@@ -521,6 +522,9 @@ const styles = StyleSheet.create({
         marginTop: 75,
         textAlign: 'center',
         backgroundColor: '#3498db'
+    },
+    disabledButton: {
+        backgroundColor: '#cccccc',
     },
 });
 

@@ -477,7 +477,7 @@ const styles = StyleSheet.create({
         marginBottom: 1
     },
     input: {
-        width: 270,
+        width: 250,
         height: 40,
         borderColor: '#c4c4c4',
         backgroundColor: '#cfcfcf',
@@ -569,6 +569,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         borderRadius: 5,
         width: '48%',
-    }
+    },
 });
 export default EntregaCalidadScreen;
