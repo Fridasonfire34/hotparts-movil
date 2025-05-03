@@ -36,7 +36,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
         const fetchHotParts = async () => {
             setLoading(true);
             try {
-                const response = await axios.get('http://192.168.16.182:3000/api/calidad');
+                const response = await axios.get('http://192.168.16.146:3002/api/calidad');
                 setHotParts(response.data);
                 setFilteredHotParts(response.data);
             } catch (error) {
@@ -100,7 +100,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
             const numerosParte = rowsWithQuantityOne.map((item) => item['Numero de Parte']);
 
             try {
-                const response = await axios.post('http://192.168.16.182:3000/api/cantidadRecibo', {
+                const response = await axios.post('http://192.168.16.146:3002/api/cantidadRecibo', {
                     folios,
                     cantidades,
                     ordenesCompra,
@@ -140,7 +140,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
         }
 
         try {
-            const response = await axios.post('http://192.168.16.182:3000/api/cantidadRecibo', {
+            const response = await axios.post('http://192.168.16.146:3002/api/cantidadRecibo', {
                 folios: [item.Folio],
                 cantidades: [quantityToDeliver],
                 nomina: nomina,
@@ -182,7 +182,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
 
         try {
             setLoading(true);
-            const response = await axios.post('http://192.168.16.182:3000/api/generarCodigo', {
+            const response = await axios.post('http://192.168.16.146:3002/api/generarCodigo', {
                 folios: foliosSeleccionados,
                 nomina
             });
@@ -220,7 +220,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
     const handleConfirmar = async () => {
         try {
             setIsModalVisible(false);
-            const response = await axios.get('http://192.168.16.182:3000/api/calidad');
+            const response = await axios.get('http://192.168.16.146:3002/api/calidad');
         } catch (error) {
             console.error('Error al obtener datos de calidad:', error);
             Alert.alert('Error', 'No se pudieron actualizar los datos de calidad.');

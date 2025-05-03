@@ -38,7 +38,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
         const fetchHotParts = async () => {
             setLoading(true);
             try {
-                const response = await axios.get('http://192.168.16.182:3000/api/Produccion');
+                const response = await axios.get('http://192.168.16.146:3002/api/Produccion');
                 setHotParts(response.data);
                 setFilteredHotParts(response.data);
             } catch (error) {
@@ -104,7 +104,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
             const numerosParte = rowsWithQuantityOne.map((item) => item['Numero de Parte']);
 
             try {
-                const response = await axios.post('http://192.168.16.182:3000/api/cantidadEntrega', {
+                const response = await axios.post('http://192.168.16.146:3002/api/cantidadEntrega', {
                     folios,
                     cantidades,
                     ordenesCompra,
@@ -143,7 +143,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
         }
 
         try {
-            const response = await axios.post('http://192.168.16.182:3000/api/cantidadEntrega', {
+            const response = await axios.post('http://192.168.16.146:3002/api/cantidadEntrega', {
                 folios: [item.Folio],
                 cantidades: [quantityToDeliver],
                 nomina: nomina,
@@ -185,20 +185,20 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
                 return;
             }
 
-            const verifyResponse = await axios.post('http://192.168.16.182:3000/api/verificarCodigos', {
+            const verifyResponse = await axios.post('http://192.168.16.146:3002/api/verificarCodigos', {
                 folios: foliosSeleccionados,
                 codigoEntrega: codigoEntrega,
                 nomina: nomina
             });
 
             if (verifyResponse.data.success) {
-                const reciboResponse = await axios.post('http://192.168.16.182:3000/api/reciboCalidad', {
+                const reciboResponse = await axios.post('http://192.168.16.146:3002/api/reciboCalidad', {
                     folios: foliosSeleccionados,
                     nomina: nomina,
                 });
 
                 if (reciboResponse.data.success) {
-                    const guardarMovimientoResponse = await axios.post('http://192.168.16.182:3000/api/guardarMovimiento', {
+                    const guardarMovimientoResponse = await axios.post('http://192.168.16.146:3002/api/guardarMovimiento', {
                         folios: foliosSeleccionados,
                         nomina: nomina,
                     });
@@ -214,11 +214,11 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
                             text: 'OK',
                             onPress: async () => {
                                 try {
-                                    const updateResponse = await axios.get('http://192.168.16.182:3000/api/Produccion');
+                                    const updateResponse = await axios.get('http://192.168.16.146:3002/api/Produccion');
                                     setHotParts(updateResponse.data);
                                     setFilteredHotParts(updateResponse.data);
 
-                                    const entregaResponse = await axios.get('http://192.168.16.182:3000/api/entregaProduccion');
+                                    const entregaResponse = await axios.get('http://192.168.16.146:3002/api/entregaProduccion');
                                     console.log('Respuesta de entregaProduccion:', entregaResponse.data);
                                 } catch (error) {
                                     console.error('Error al ejecutar las APIs:', error);
@@ -237,7 +237,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
             console.error('Axios Error:', error.response ? error.response.data : error.message);
 
             try {
-                const eliminarResponse = await axios.post('http://192.168.16.182:3000/api/eliminarCodigos', {});
+                const eliminarResponse = await axios.post('http://192.168.16.146:3002/api/eliminarCodigos', {});
 
                 if (eliminarResponse.data.success) {
                     console.log('Códigos eliminados correctamente');
