@@ -12,9 +12,9 @@ interface Props {
 
 interface HotPart {
     Folio: string;
-    ['Orden de Compra']: number;
+    ['Secuencia']: number;
     ['Numero de Parte']: string;
-    ['Cantidad Recibida']: number;
+    ['Cantidad Faltante']: number;
 }
 
 const ReordenScreen: React.FC<Props> = ({ route }) => {
@@ -83,7 +83,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
 
         const filtered = hotParts.filter(
             (item) =>
-                item['Cantidad Recibida'] > 0 &&
+                item['Cantidad Faltante'] > 0 &&
                 item['Numero de Parte'].toLowerCase().includes(trimmedText)
         );
 
@@ -105,17 +105,17 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
 
     const handleRecibirHotPart = async () => {
         const rowsWithQuantityOne = selectedItems.filter(
-            (item) => item['Cantidad Recibida'] === 1
+            (item) => item['Cantidad Faltante'] === 1
         );
 
         const rowsWithQuantityGreaterThanOne = selectedItems.filter(
-            (item) => item['Cantidad Recibida'] > 1
+            (item) => item['Cantidad Faltante'] > 1
         );
 
         if (rowsWithQuantityOne.length > 0) {
             const folios = rowsWithQuantityOne.map((item) => item.Folio);
-            const cantidades = rowsWithQuantityOne.map((item) => item['Cantidad Recibida']);
-            const ordenesCompra = rowsWithQuantityOne.map((item) => item['Orden de Compra']);
+            const cantidades = rowsWithQuantityOne.map((item) => item['Cantidad Faltante']);
+            const ordenesCompra = rowsWithQuantityOne.map((item) => item['Secuencia']);
             const numerosParte = rowsWithQuantityOne.map((item) => item['Numero de Parte']);
 
             try {
@@ -155,7 +155,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
         const item = selectedItems[currentItemIndex];
         const quantityToDeliver = quantitiesToDeliver[item.Folio];
 
-        if (!quantityToDeliver || quantityToDeliver <= 0 || quantityToDeliver > item['Cantidad Recibida']) {
+        if (!quantityToDeliver || quantityToDeliver <= 0 || quantityToDeliver > item['Cantidad Faltante']) {
             Alert.alert('Error', `La cantidad ingresada para el Hot Part ${item['Numero de Parte']} debe ser mayor a 0 y menor o igual a la cantidad disponible.`);
             return;
         }
@@ -165,7 +165,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                 folios: [item.Folio],
                 cantidades: [quantityToDeliver],
                 nomina: nomina,
-                ordenesCompra: [item['Orden de Compra']],
+                ordenesCompra: [item['Secuencia']],
                 numerosParte: [item['Numero de Parte']],
             });
 
@@ -190,6 +190,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
     const handleConfirmarComentario = async () => {
         try {
             const foliosSeleccionados = selectedItems.map(item => item.Folio);
+            const secuencias = selectedItems.map(item => item['Secuencia']);
 
             const response = await axios.post('http://192.168.16.182:3000/api/ComentariosReorden', {
                 folios: foliosSeleccionados,
@@ -206,6 +207,10 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                 await axios.post('http://192.168.16.182:3000/api/guardarMovimientoReorden', {
                     folios: foliosSeleccionados,
                     nomina: nomina
+                });
+
+                await axios.post('http://192.168.16.182:3000/api/reordenNotif', {
+                    secuencias: secuencias,
                 });
 
                 Alert.alert('Éxito', 'Comentario registrado correctamente.', [
@@ -233,6 +238,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
 
     const handleReordenSinComentario = async () => {
         const folios = selectedItems.map(item => item.Folio);
+        const secuencias = selectedItems.map(item => item['Secuencia']);
 
         if (folios.length === 0) {
             Alert.alert('Aviso', 'No hay piezas seleccionadas para registrar.');
@@ -259,8 +265,13 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                                         nomina: nomina
                                     });
                                     console.log('Movimiento guardado:', guardarMovimientoResponse.data);
+
+                                    await axios.post('http://192.168.16.182:3000/api/reordenNotif', {
+                                        secuencias: secuencias,
+                                    });
+
                                 } catch (error) {
-                                    console.error('Error al guardar movimiento de reorden:', error);
+                                    console.error('Error al guardar movimiento de reorden o enviar notificación:', error);
                                 }
 
                                 const updateResponse = await axios.get('http://192.168.16.182:3000/api/calidad');
@@ -279,6 +290,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
             Alert.alert('Error', 'Error al registrar sin comentario.');
         }
     };
+
 
 
     const handleQuantityChange = (text: string) => {
@@ -303,9 +315,9 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                 style={[styles.tableRow, isSelected && styles.selectedRow]}
                 onPress={() => toggleSelectItem(item)}
             >
-                <Text>{String(item['Orden de Compra'])}</Text>
+                <Text>{String(item['Secuencia'])}</Text>
                 <Text>{String(item['Numero de Parte'])}</Text>
-                <Text>{String(item['Cantidad Recibida'])}</Text>
+                <Text>{String(item['Cantidad Faltante'])}</Text>
             </TouchableOpacity>
         );
     };
@@ -491,7 +503,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
 
 const styles = StyleSheet.create({
     container: {
-        flex: 0.999,
+        flex: 1,
         justifyContent: 'flex-start',
         alignItems: 'center',
         paddingVertical: 10,
@@ -507,7 +519,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: 'black',
         marginBottom: 5,
-        marginTop: 50,
+        marginTop: 30,
         textAlign: 'center',
         backgroundColor: '#3498db'
     },
@@ -540,7 +552,7 @@ const styles = StyleSheet.create({
     },
     topContainer: {
         position: 'absolute',
-        top: 20,
+        top: 5,
         left: 20,
         right: 20,
         alignItems: 'center',
@@ -557,7 +569,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: 'black',
         marginBottom: 5,
-        marginTop: 35,
+        marginTop: 10,
     },
     inputContainer: {
         flexDirection: 'row',

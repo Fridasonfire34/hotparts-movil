@@ -12,7 +12,7 @@ interface Props {
 
 interface HotPart {
     Folio: string;
-    ['Orden de Compra']: number;
+    ['Secuencia']: number;
     ['Numero de Parte']: string;
     ['Cantidad Faltante']: number;
 }
@@ -96,7 +96,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
         if (rowsWithQuantityOne.length > 0) {
             const folios = rowsWithQuantityOne.map((item) => item.Folio);
             const cantidades = rowsWithQuantityOne.map((item) => item['Cantidad Faltante']);
-            const ordenesCompra = rowsWithQuantityOne.map((item) => item['Orden de Compra']);
+            const ordenesCompra = rowsWithQuantityOne.map((item) => item['Secuencia']);
             const numerosParte = rowsWithQuantityOne.map((item) => item['Numero de Parte']);
 
             try {
@@ -144,7 +144,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
                 folios: [item.Folio],
                 cantidades: [quantityToDeliver],
                 nomina: nomina,
-                ordenesCompra: [item['Orden de Compra']],
+                ordenesCompra: [item['Secuencia']],
                 numerosParte: [item['Numero de Parte']],
             });
 
@@ -235,7 +235,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
                 style={[styles.tableRow, isSelected && styles.selectedRow]}
                 onPress={() => toggleSelectItem(item)}
             >
-                <Text>{String(item['Orden de Compra'])}</Text>
+                <Text>{String(item['Secuencia'])}</Text>
                 <Text>{String(item['Numero de Parte'])}</Text>
                 <Text>{String(item['Cantidad Faltante'])}</Text>
             </TouchableOpacity>
@@ -367,7 +367,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
 
 const styles = StyleSheet.create({
     container: {
-        flex: 0.999,
+        flex: 1,
         justifyContent: 'flex-start',
         alignItems: 'center',
         paddingVertical: 10,
@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
     },
     topContainer: {
         position: 'absolute',
-        top: 50,
+        top: 10,
         left: 20,
         right: 20,
         alignItems: 'center',
@@ -425,12 +425,12 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: 'black',
         marginBottom: 5,
-        marginTop: 5,
+        marginTop: 10,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 75,
+        marginTop: 35,
         marginBottom: 1
     },
     input: {
@@ -455,7 +455,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     tableContainer: {
-        marginTop: 20,
+        marginTop: 10,
         width: '90%',
     },
     tableRow: {

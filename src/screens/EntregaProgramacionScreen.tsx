@@ -12,7 +12,7 @@ interface Props {
 
 interface HotPart {
     Folio: string;
-    ['Orden de Compra']: number;
+    ['Secuencia']: number;
     ['Numero de Parte']: string;
     ['Cantidad']: number;
 }
@@ -88,7 +88,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
             try {
                 const folios = selectedItems.map(item => item.Folio);
                 const cantidades = selectedItems.map(item => item.Cantidad);
-                const ordenesCompra = selectedItems.map(item => item['Orden de Compra']);
+                const ordenesCompra = selectedItems.map(item => item['Secuencia']);
                 const numerosParte = selectedItems.map(item => item['Numero de Parte']);
                 console.log("Folios seleccionados:", folios);
 
@@ -158,14 +158,20 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
                         console.error('Error al llamar a la API guardarMovimiento:', guardarMovimientoError.message);
                     }
 
-                    Alert.alert('Éxito', 'Estatus actualizado a Producción', [
+                    Alert.alert('Éxito', 'Estatus actualizado a Produccion', [
                         {
                             text: 'OK',
                             onPress: async () => {
-                                const updateResponse = await axios.get('http://192.168.16.182:3000/api/Programacion');
-                                console.log("Update Response:", updateResponse);
-                                setHotParts(updateResponse.data);
-                                setFilteredHotParts(updateResponse.data);
+                                try {
+                                    const updateResponse = await axios.get('http://192.168.16.182:3000/api/Programacion');
+                                    setHotParts(updateResponse.data);
+                                    setFilteredHotParts(updateResponse.data);
+
+                                    const entregaResponse = await axios.get('http://192.168.16.182:3000/api/entregaProgramacion');
+                                    console.log('Respuesta de entregaProgramacion:', entregaResponse.data);
+                                } catch (error) {
+                                    console.error('Error al ejecutar las APIs:', error);
+                                }
                             }
                         }
                     ]);
@@ -205,7 +211,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
                 style={[styles.tableRow, isSelected && styles.selectedRow]}
                 onPress={() => toggleSelectItem(item)}
             >
-                <Text>{String(item['Orden de Compra'])}</Text>
+                <Text>{String(item['Secuencia'])}</Text>
                 <Text>{String(item['Numero de Parte'])}</Text>
                 <Text>{String(item['Cantidad'])}</Text>
             </TouchableOpacity>
@@ -300,7 +306,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
 
 const styles = StyleSheet.create({
     container: {
-        flex: 0.999,
+        flex: 1,
         justifyContent: 'flex-start',
         alignItems: 'center',
         paddingVertical: 10,
@@ -354,7 +360,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: 'black',
         marginBottom: 10,
-        marginTop: 35,
+        marginTop: 10,
     },
     inputContainer: {
         flexDirection: 'row',

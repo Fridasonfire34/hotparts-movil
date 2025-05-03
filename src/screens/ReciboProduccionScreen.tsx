@@ -12,7 +12,7 @@ interface Props {
 
 interface HotPart {
     Folio: string;
-    ['Orden de Compra']: number;
+    ['Secuencia']: number;
     ['Numero de Parte']: string;
     ['Cantidad']: number;
 }
@@ -86,7 +86,7 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
             try {
                 const folios = selectedItems.map(item => item.Folio);
                 const cantidades = selectedItems.map(item => item.Cantidad);
-                const ordenesCompra = selectedItems.map(item => item['Orden de Compra']);
+                const ordenesCompra = selectedItems.map(item => item['Secuencia']);
                 const numerosParte = selectedItems.map(item => item['Numero de Parte']);
                 console.log("Folios seleccionados:", folios);
 
@@ -163,7 +163,7 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
                 style={[styles.tableRow, isSelected && styles.selectedRow]}
                 onPress={() => toggleSelectItem(item)}
             >
-                <Text>{String(item['Orden de Compra'])}</Text>
+                <Text>{String(item['Secuencia'])}</Text>
                 <Text>{String(item['Numero de Parte'])}</Text>
                 <Text>{String(item['Cantidad'])}</Text>
             </TouchableOpacity>
@@ -246,7 +246,7 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
 
 const styles = StyleSheet.create({
     container: {
-        flex: 0.999,
+        flex: 1,
         justifyContent: 'flex-start',
         alignItems: 'center',
         paddingVertical: 10,
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
     headerQty: {
         flex: 1,
         textAlign: 'right',
-        marginRight: 10,
+        marginRight: 5,
         fontWeight: 'bold',
         color: '#000',
     },
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
     },
     topContainer: {
         position: 'absolute',
-        top: 20,
+        top: 5,
         left: 20,
         right: 20,
         alignItems: 'center',
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: 'black',
         marginBottom: 5,
-        marginTop: 75,
+        marginTop: 30,
         textAlign: 'center',
         backgroundColor: '#3498db'
     },
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: 'black',
         marginBottom: 5,
-        marginTop: 35,
+        marginTop: 10,
     },
     inputContainer: {
         flexDirection: 'row',
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     tableContainer: {
-        marginTop: 20,
+        marginTop: 10,
         width: '90%',
     },
     tableRow: {
@@ -387,13 +387,6 @@ const styles = StyleSheet.create({
         fontSize: 16,
         marginBottom: 20,
     },
-    boldText: {
-        fontWeight: 'bold',
-        fontSize: 16,
-    },
-    disabledButton: {
-        backgroundColor: '#cccccc',
-    },
     confirmButton: {
         backgroundColor: '#0e5699',
         paddingVertical: 10,
@@ -407,7 +400,14 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         borderRadius: 5,
         width: '48%',
-    }
+    },
+    boldText: {
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
+    disabledButton: {
+        backgroundColor: '#cccccc',
+    },
 });
 
 export default ReciboProduccionScreen;

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "488186611749",
+    "project_id": "hot-parts",
+    "storage_bucket": "hot-parts.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:488186611749:android:007901ad945264a1ddd7cc",
+        "android_client_info": {
+          "package_name": "com.hotparts"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD8QhJBAyxCASLdwLtNdTgoylEGRJ0xNSk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

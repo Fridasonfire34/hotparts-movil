@@ -12,7 +12,7 @@ interface Props {
 
 interface HotPart {
     Folio: string;
-    ['Orden de Compra']: number;
+    ['Secuencia']: number;
     ['Numero de Parte']: string;
     ['Cantidad Faltante por Entregar']: number;
 }
@@ -36,7 +36,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
         const fetchHotParts = async () => {
             setLoading(true);
             try {
-                const response = await axios.get('http://192.168.16.182:3000/api/Produccion');
+                const response = await axios.get('http://192.168.16.182:3000/api/produccion');
                 setHotParts(response.data);
                 setFilteredHotParts(response.data);
             } catch (error) {
@@ -97,7 +97,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
         if (rowsWithQuantityOne.length > 0) {
             const folios = rowsWithQuantityOne.map((item) => item.Folio);
             const cantidades = rowsWithQuantityOne.map((item) => item['Cantidad Faltante por Entregar']);
-            const ordenesCompra = rowsWithQuantityOne.map((item) => item['Orden de Compra']);
+            const ordenesCompra = rowsWithQuantityOne.map((item) => item['Secuencia']);
             const numerosParte = rowsWithQuantityOne.map((item) => item['Numero de Parte']);
 
             try {
@@ -145,7 +145,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
                 folios: [item.Folio],
                 cantidades: [quantityToDeliver],
                 nomina: nomina,
-                ordenesCompra: [item['Orden de Compra']],
+                ordenesCompra: [item['Secuencia']],
                 numerosParte: [item['Numero de Parte']],
             });
 
@@ -221,7 +221,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
     const handleConfirmar = async () => {
         try {
             setIsModalVisible(false);
-            const response = await axios.get('http://192.168.16.182:3000/api/Produccion');
+            const response = await axios.get('http://192.168.16.182:3000/api/produccion');
         } catch (error) {
             console.error('Error al obtener datos de calidad:', error);
             Alert.alert('Error', 'No se pudieron actualizar los datos de calidad.');
@@ -236,7 +236,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
                 style={[styles.tableRow, isSelected && styles.selectedRow]}
                 onPress={() => toggleSelectItem(item)}
             >
-                <Text>{String(item['Orden de Compra'])}</Text>
+                <Text>{String(item['Secuencia'])}</Text>
                 <Text>{String(item['Numero de Parte'])}</Text>
                 <Text>{String(item['Cantidad Faltante por Entregar'])}</Text>
             </TouchableOpacity>
@@ -358,7 +358,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
 
 const styles = StyleSheet.create({
     container: {
-        flex: 0.999,
+        flex: 1,
         justifyContent: 'flex-start',
         alignItems: 'center',
         paddingVertical: 10,
@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
     },
     topContainer: {
         position: 'absolute',
-        top: 50,
+        top: 10,
         left: 20,
         right: 20,
         alignItems: 'center',
@@ -416,12 +416,12 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: 'black',
         marginBottom: 5,
-        marginTop: 5,
+        marginTop: 1,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 15,
+        marginTop: 10,
         marginBottom: 1
     },
     input: {
@@ -495,6 +495,20 @@ const styles = StyleSheet.create({
         fontSize: 16,
         marginBottom: 20,
     },
+    buttonsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        width: '100%',
+        marginTop: 20,
+    },
+    Screen: {
+        fontSize: 14,
+        color: 'black',
+        marginBottom: 5,
+        marginTop: 30,
+        textAlign: 'center',
+        backgroundColor: '#3498db'
+    },
     confirmButton: {
         backgroundColor: '#0e5699',
         paddingVertical: 10,
@@ -502,26 +516,12 @@ const styles = StyleSheet.create({
         borderRadius: 5,
         width: '48%',
     },
-    buttonsContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        width: '100%',
-        marginTop: 20,
-    },
     cancelButton: {
         backgroundColor: '#c4c4c4',
         paddingVertical: 10,
         paddingHorizontal: 20,
         borderRadius: 5,
         width: '48%',
-    },
-    Screen: {
-        fontSize: 14,
-        color: 'black',
-        marginBottom: 5,
-        marginTop: 75,
-        textAlign: 'center',
-        backgroundColor: '#3498db'
     },
     disabledButton: {
         backgroundColor: '#cccccc',

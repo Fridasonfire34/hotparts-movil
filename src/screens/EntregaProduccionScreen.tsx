@@ -12,7 +12,7 @@ interface Props {
 
 interface HotPart {
     Folio: string;
-    ['Orden de Compra']: number;
+    ['Secuencia']: number;
     ['Numero de Parte']: string;
     ['Cantidad Faltante por Entregar']: number;
 }
@@ -100,7 +100,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
         if (rowsWithQuantityOne.length > 0) {
             const folios = rowsWithQuantityOne.map((item) => item.Folio);
             const cantidades = rowsWithQuantityOne.map((item) => item['Cantidad Faltante por Entregar']);
-            const ordenesCompra = rowsWithQuantityOne.map((item) => item['Orden de Compra']);
+            const ordenesCompra = rowsWithQuantityOne.map((item) => item['Secuencia']);
             const numerosParte = rowsWithQuantityOne.map((item) => item['Numero de Parte']);
 
             try {
@@ -147,7 +147,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
                 folios: [item.Folio],
                 cantidades: [quantityToDeliver],
                 nomina: nomina,
-                ordenesCompra: [item['Orden de Compra']],
+                ordenesCompra: [item['Secuencia']],
                 numerosParte: [item['Numero de Parte']],
             });
 
@@ -213,9 +213,16 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
                         {
                             text: 'OK',
                             onPress: async () => {
-                                const updateResponse = await axios.get('http://192.168.16.182:3000/api/Produccion');
-                                setHotParts(updateResponse.data);
-                                setFilteredHotParts(updateResponse.data);
+                                try {
+                                    const updateResponse = await axios.get('http://192.168.16.182:3000/api/Produccion');
+                                    setHotParts(updateResponse.data);
+                                    setFilteredHotParts(updateResponse.data);
+
+                                    const entregaResponse = await axios.get('http://192.168.16.182:3000/api/entregaProduccion');
+                                    console.log('Respuesta de entregaProduccion:', entregaResponse.data);
+                                } catch (error) {
+                                    console.error('Error al ejecutar las APIs:', error);
+                                }
                             }
                         }
                     ]);
@@ -269,7 +276,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
                 style={[styles.tableRow, isSelected && styles.selectedRow]}
                 onPress={() => toggleSelectItem(item)}
             >
-                <Text>{String(item['Orden de Compra'])}</Text>
+                <Text>{String(item['Secuencia'])}</Text>
                 <Text>{String(item['Numero de Parte'])}</Text>
                 <Text>{String(item['Cantidad Faltante por Entregar'])}</Text>
             </TouchableOpacity>
@@ -402,7 +409,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
 
 const styles = StyleSheet.create({
     container: {
-        flex: 0.999,
+        flex: 1,
         justifyContent: 'flex-start',
         alignItems: 'center',
         paddingVertical: 10,
@@ -422,7 +429,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: 'black',
         marginBottom: 5,
-        marginTop: 75,
+        marginTop: 30,
         textAlign: 'center',
         backgroundColor: '#3498db'
     },
@@ -451,7 +458,7 @@ const styles = StyleSheet.create({
     },
     topContainer: {
         position: 'absolute',
-        top: 20,
+        top: 5,
         left: 20,
         right: 20,
         alignItems: 'center',
@@ -468,7 +475,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: 'black',
         marginBottom: 5,
-        marginTop: 35,
+        marginTop: 10,
     },
     inputContainer: {
         flexDirection: 'row',

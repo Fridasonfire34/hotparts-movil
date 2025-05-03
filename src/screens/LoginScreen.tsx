@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { View, TextInput, Button, Text, StyleSheet, TouchableOpacity, Image, ImageBackground } from 'react-native';
-import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StackNavigationProp } from '@react-navigation/stack';
 import logo from './assets/LoginIcon.jpg';
+import messaging from '@react-native-firebase/messaging';
+
 
 type RootStackParamList = {
     Login: undefined;
@@ -43,6 +44,20 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
                 setNomina('');
                 setPassword('');
 
+                const token = await messaging().getToken();
+                console.log('FCM Token:', token);
+
+                await fetch('http://192.168.16.182:3000/api/registroToken', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        token: token,
+                        nomina: nomina, // o data.user.id si así lo llamas
+                    }),
+                });
+
                 navigation.navigate('Menu');
             } else {
                 const errorData = await response.json();
@@ -54,13 +69,14 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         }
     };
 
+
     return (
         <ImageBackground
             source={require('./assets/fondo1.jpg')}
             resizeMode="cover"
             style={styles.container}
         >
-            <Text style={styles.headerText}>Inicio de Sesión</Text>
+            <Text style={styles.headerText}>Iniciar Sesión en Hot Parts</Text>
 
             <Image source={logo} style={styles.image} />
 
@@ -146,7 +162,7 @@ const styles = StyleSheet.create({
     footerText: {
         position: 'relative',
         //bottom: 1,
-        marginTop: 255,
+        marginTop: 220,
         left: '30%',
         color: 'black',
         fontSize: 14,
