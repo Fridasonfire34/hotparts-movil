@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import messaging from '@react-native-firebase/messaging';
 import notifee from '@notifee/react-native';
-import { PermissionsAndroid, Platform } from 'react-native';
+import { PermissionsAndroid, Platform, Alert, Linking } from 'react-native';
+import axios from 'axios';
 
 import LoginScreen from './src/screens/LoginScreen';
 import MenuScreen from './src/screens/MenuScreen';
@@ -28,12 +29,21 @@ type RootStackParamList = {
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
+const VERSION_JSON_URL = 'https://hot-parts.web.app/version.json'; // La URL de tu version.json
 
 const App: React.FC = () => {
+  const [currentVersion, setCurrentVersion] = useState<string>('1.0.0'); // Versión actual de la app (cambiar según tu versión)
+  const [latestVersion, setLatestVersion] = useState<string>('');
+  const [downloadUrl, setDownloadUrl] = useState<string>('');
+
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
 
     const setup = async () => {
+      // Verifica si hay actualizaciones disponibles
+      checkForUpdate();
+
+      // Configuración de Firebase y Notifee
       if (Platform.OS === 'android' && Platform.Version >= 33) {
         const granted = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
@@ -86,8 +96,54 @@ const App: React.FC = () => {
     };
 
     setup();
-  }, []);
+  }, []); // Empty dependency array, se ejecuta solo al montar
 
+  const checkForUpdate = async () => {
+    try {
+      // Realiza la solicitud HTTP para obtener el archivo version.json
+      const response = await axios.get(VERSION_JSON_URL);
+      const versionData = response.data;
+
+      setLatestVersion(versionData.version);
+      setDownloadUrl(versionData.url);
+
+      // Compara las versiones
+      if (versionData.version !== currentVersion) {
+        showUpdateDialog();
+      }
+    } catch (error) {
+      console.error('Error al verificar actualizaciones', error);
+    }
+  };
+
+  const showUpdateDialog = () => {
+    // Mostrar un cuadro de alerta para que el usuario sepa que hay una nueva versión
+    Alert.alert(
+      'Nueva versión disponible',
+      '¡Hay una nueva versión disponible! ¿Quieres descargarla?',
+      [
+        {
+          text: 'Sí',
+          onPress: () => downloadUpdate(),
+        },
+        {
+          text: 'No',
+          onPress: () => console.log('No se descargará la nueva versión'),
+          style: 'cancel',
+        },
+      ],
+      { cancelable: false }
+    );
+  };
+
+  const downloadUpdate = () => {
+    if (downloadUrl) {
+      // Abrir el enlace de descarga
+      Linking.openURL(downloadUrl).catch(err =>
+        console.error('Error al intentar abrir el enlace', err)
+      );
+    }
+  };
 
   return (
     <NavigationContainer>

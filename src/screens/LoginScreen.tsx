@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
         //   justifyContent: 'flex-start',
         alignItems: 'center',
         paddingTop: 100,
-        paddingHorizontal: 50,
+        paddingHorizontal: 40,
         backgroundColor: 'white',
         position: 'relative'
     },
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     input: {
-        width: '95%',
+        width: '90%',
         height: 60,
         borderColor: '#ebebeb',
         borderWidth: 1,
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     },
     button: {
         backgroundColor: 'white',
-        width: '95%',
+        width: '90%',
         paddingVertical: 13,
         alignItems: 'center',
         borderRadius: 5,

@@ -163,7 +163,7 @@ const MenuScreen: React.FC<Props> = ({ navigation }) => {
                     >
                         <Image
                             source={require('./assets/reorden.png')}
-                            style={styles.buttonImageRecibe}
+                            style={styles.buttonImageReorden}
                             resizeMode="contain"
                         />
                         <Text style={styles.buttonText}>Reorden</Text>
@@ -192,7 +192,7 @@ const MenuScreen: React.FC<Props> = ({ navigation }) => {
                         <Image
                             source={require('./assets/recibir.png')}
                             style={styles.buttonImageRecibe}
-                            resizeMode="contain"
+                            resizeMode="center"
                         />
                         <Text style={styles.buttonText}>Recibir</Text>
                     </TouchableOpacity>
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
         marginTop: 80,
     },
     buttonCalidad: {
-        width: 350,
+        width: 340,
         height: '26%',
         borderRadius: 10,
         justifyContent: 'flex-end',
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
         paddingBottom: 5,
     },
     button: {
-        width: 350,
+        width: 340,
         height: '35%',
         backgroundColor: 'rgba(211, 211, 211, 0.4)',
         borderRadius: 10,
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
         marginTop: 5
     },
     buttonProgramacion: {
-        width: 350,
+        width: 340,
         height: '35%',
         backgroundColor: 'rgba(211, 211, 211, 0.4)',
         borderRadius: 10,
@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
         ],
     },
     buttonEmbarques: {
-        width: 350,
+        width: 340,
         height: '35%',
         backgroundColor: 'rgba(211, 211, 211, 0.4)',
         borderRadius: 10,
@@ -312,6 +312,13 @@ const styles = StyleSheet.create({
     buttonImageRecibe: {
         width: '100%',
         height: '90%',
+        alignItems: 'center',
+        borderRadius: 10,
+    },
+    buttonImageReorden: {
+        width: '100%',
+        height: '87%',
+        alignItems: 'center',
         borderRadius: 10,
     },
 });
