@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
         elevation: 3,
         position: 'absolute',
         top: '50%',
-        left: '50%',
+        left: '58%',
         transform: [
             { translateX: -190 },
             { translateY: -('35%' === '35%' ? 0.35 * Dimensions.get('window').height / 2 : 100) }
