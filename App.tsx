@@ -41,7 +41,6 @@ const App: React.FC = () => {
 
     const setup = async () => {
       // Verifica si hay actualizaciones disponibles
-      checkForUpdate();
 
       // Configuración de Firebase y Notifee
       if (Platform.OS === 'android' && Platform.Version >= 33) {
@@ -97,53 +96,6 @@ const App: React.FC = () => {
 
     setup();
   }, []); // Empty dependency array, se ejecuta solo al montar
-
-  const checkForUpdate = async () => {
-    try {
-      // Realiza la solicitud HTTP para obtener el archivo version.json
-      const response = await axios.get(VERSION_JSON_URL);
-      const versionData = response.data;
-
-      setLatestVersion(versionData.version);
-      setDownloadUrl(versionData.url);
-
-      // Compara las versiones
-      if (versionData.version !== currentVersion) {
-        showUpdateDialog();
-      }
-    } catch (error) {
-      console.error('Error al verificar actualizaciones', error);
-    }
-  };
-
-  const showUpdateDialog = () => {
-    // Mostrar un cuadro de alerta para que el usuario sepa que hay una nueva versión
-    Alert.alert(
-      'Nueva versión disponible',
-      '¡Hay una nueva versión disponible! ¿Quieres descargarla?',
-      [
-        {
-          text: 'Sí',
-          onPress: () => downloadUpdate(),
-        },
-        {
-          text: 'No',
-          onPress: () => console.log('No se descargará la nueva versión'),
-          style: 'cancel',
-        },
-      ],
-      { cancelable: false }
-    );
-  };
-
-  const downloadUpdate = () => {
-    if (downloadUrl) {
-      // Abrir el enlace de descarga
-      Linking.openURL(downloadUrl).catch(err =>
-        console.error('Error al intentar abrir el enlace', err)
-      );
-    }
-  };
 
   return (
     <NavigationContainer>

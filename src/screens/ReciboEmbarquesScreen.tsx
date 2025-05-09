@@ -86,16 +86,16 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
 
     const handleRecibirHotPart = async () => {
         const rowsWithQuantityOne = selectedItems.filter(
-            (item) => item['Cantidad Faltante'] === 1
+            (item) => item['Cantidad Faltante por Entregar'] === 1
         );
 
         const rowsWithQuantityGreaterThanOne = selectedItems.filter(
-            (item) => item['Cantidad Faltante'] > 1
+            (item) => item['Cantidad Faltante por Entregar'] > 1
         );
 
         if (rowsWithQuantityOne.length > 0) {
             const folios = rowsWithQuantityOne.map((item) => item.Folio);
-            const cantidades = rowsWithQuantityOne.map((item) => item['Cantidad Faltante']);
+            const cantidades = rowsWithQuantityOne.map((item) => item['Cantidad Faltante por Entregar']);
             const ordenesCompra = rowsWithQuantityOne.map((item) => item['Secuencia']);
             const numerosParte = rowsWithQuantityOne.map((item) => item['Numero de Parte']);
 
@@ -110,8 +110,9 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
 
                 if (response.data.success) {
                     console.log('Filas con cantidad 1 procesadas correctamente.');
-                    setFoliosCantidadUno(folios);
-
+                    setFoliosCantidadUno(folios); // Guardamos esos folios
+                    await generarCodigoRecibo();
+                    
                 } else {
                     Alert.alert('Error', response.data.message);
                 }
@@ -133,12 +134,12 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
     const handleQuantityConfirm = async () => {
         const item = selectedItems[currentItemIndex];
         const quantityToDeliver = quantitiesToDeliver[item.Folio];
-
-        if (!quantityToDeliver || quantityToDeliver <= 0 || quantityToDeliver > item['Cantidad Faltante']) {
+    
+        if (!quantityToDeliver || quantityToDeliver <= 0 || quantityToDeliver > item['Cantidad Faltante por Entregar']) {
             Alert.alert('Error', `La cantidad ingresada para el Hot Part ${item['Numero de Parte']} debe ser mayor a 0 y menor o igual a la cantidad disponible.`);
             return;
         }
-
+    
         try {
             const response = await axios.post('http://192.168.16.146:3002/api/cantidadRecibo', {
                 folios: [item.Folio],
@@ -147,19 +148,24 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
                 ordenesCompra: [item['Secuencia']],
                 numerosParte: [item['Numero de Parte']],
             });
-
+    
             if (response.data.success) {
                 console.log(`Cantidad registrada correctamente para Hot Part ${item['Numero de Parte']}`);
+    
+                // Llamada a generarCodigoRecibo después de registrar correctamente la cantidad
+                await generarCodigoRecibo(); // Esperamos a que termine de ejecutarse
+    
             } else {
                 Alert.alert('Error', response.data.message);
             }
-
+    
             if (currentItemIndex + 1 < selectedItems.length) {
                 setCurrentItemIndex(currentItemIndex + 1);
             } else {
                 setIsQuantityModalVisible(false);
                 setIsModalVisible(true);
-                generarCodigoRecibo();
+                // Generar código de recibo al final si ya se procesaron todos los items
+                await generarCodigoRecibo();
             }
         } catch (error) {
             console.error('Error al enviar la cantidad:', error);
