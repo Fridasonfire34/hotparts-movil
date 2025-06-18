@@ -218,7 +218,7 @@ const EntregaCalidadScreen: React.FC<Props> = ({ route }) => {
                                     setHotParts(updateResponse.data);
                                     setFilteredHotParts(updateResponse.data);
 
-                                    const entregaResponse = await axios.get('http://192.168.16.146:3002/api/entregaCalidad');
+                                    const entregaResponse = await axios.post('http://192.168.16.146:3002/api/entregaCalidad');
                                     console.log('Respuesta de entregaCalidad:', entregaResponse.data);
                                 } catch (error) {
                                     console.error('Error al ejecutar las APIs:', error);

@@ -4,10 +4,10 @@ import axios from 'axios';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from './App';
 
-type ReciboEmbarquesScreenRouteProp = RouteProp<RootStackParamList, 'ReciboEmbarques'>;
+type ReciboCalidadScreenRouteProp = RouteProp<RootStackParamList, 'ReciboEmbarques'>;
 
 interface Props {
-    route: ReciboEmbarquesScreenRouteProp;
+    route: ReciboCalidadScreenRouteProp;
 }
 
 interface HotPart {
@@ -22,7 +22,6 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
     const [hotParts, setHotParts] = useState<HotPart[]>([]);
     const [filteredHotParts, setFilteredHotParts] = useState<HotPart[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
-    const [isSearchActive, setSearchActive] = useState<boolean>(false);
     const [codigoEntrega, setCodigoEntrega] = useState<string>('');
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [selectedItems, setSelectedItems] = useState<HotPart[]>([]);
@@ -31,6 +30,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
     const [currentItemIndex, setCurrentItemIndex] = useState(0);
     const [isQuantityModalVisible, setIsQuantityModalVisible] = useState(false);
     const [foliosCantidadUno, setFoliosCantidadUno] = useState<string[]>([]);
+    const [isSearchActive, setIsSearchActive] = useState(false);
 
     useEffect(() => {
         const fetchHotParts = async () => {
@@ -64,13 +64,14 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
     const handleSearch = (text: string) => {
         setSearchText(text);
 
-        let filtered = hotParts.filter((item) => item['Cantidad Faltante'] > 0);
+        const trimmedText = text.trim().toLowerCase();
+        setIsSearchActive(trimmedText.length > 0);
 
-        if (text.trim() !== '') {
-            filtered = filtered.filter((item) =>
-                item['Numero de Parte'].toLowerCase().includes(text.toLowerCase())
-            );
-        }
+        const filtered = hotParts.filter(
+            (item) =>
+                item['Cantidad Faltante'] > 0 &&
+                item['Numero de Parte'].toLowerCase().includes(trimmedText)
+        );
 
         setFilteredHotParts(filtered);
     };
@@ -86,16 +87,16 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
 
     const handleRecibirHotPart = async () => {
         const rowsWithQuantityOne = selectedItems.filter(
-            (item) => item['Cantidad Faltante por Entregar'] === 1
+            (item) => item['Cantidad Faltante'] === 1
         );
 
         const rowsWithQuantityGreaterThanOne = selectedItems.filter(
-            (item) => item['Cantidad Faltante por Entregar'] > 1
+            (item) => item['Cantidad Faltante'] > 1
         );
 
         if (rowsWithQuantityOne.length > 0) {
             const folios = rowsWithQuantityOne.map((item) => item.Folio);
-            const cantidades = rowsWithQuantityOne.map((item) => item['Cantidad Faltante por Entregar']);
+            const cantidades = rowsWithQuantityOne.map((item) => item['Cantidad Faltante']);
             const ordenesCompra = rowsWithQuantityOne.map((item) => item['Secuencia']);
             const numerosParte = rowsWithQuantityOne.map((item) => item['Numero de Parte']);
 
@@ -135,7 +136,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
         const item = selectedItems[currentItemIndex];
         const quantityToDeliver = quantitiesToDeliver[item.Folio];
     
-        if (!quantityToDeliver || quantityToDeliver <= 0 || quantityToDeliver > item['Cantidad Faltante por Entregar']) {
+        if (!quantityToDeliver || quantityToDeliver <= 0 || quantityToDeliver > item['Cantidad Faltante']) {
             Alert.alert('Error', `La cantidad ingresada para el Hot Part ${item['Numero de Parte']} debe ser mayor a 0 y menor o igual a la cantidad disponible.`);
             return;
         }
@@ -172,6 +173,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
             Alert.alert('Error', 'Hubo un error al enviar la cantidad.');
         }
     };
+    
 
 
     const generarCodigoRecibo = async () => {
@@ -197,7 +199,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
             setCodigoEntrega(typeof codigoEntrega === 'string' ? codigoEntrega : codigoEntrega[0]);
             setLoading(false);
             setIsModalVisible(true);
-            setFoliosCantidadUno([]);
+            setFoliosCantidadUno([]); // Limpiar después de generar código
         } catch (error) {
             setLoading(false);
             if (error.response) {
@@ -229,7 +231,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
             const response = await axios.get('http://192.168.16.146:3002/api/calidad');
         } catch (error) {
             console.error('Error al obtener datos de calidad:', error);
-            Alert.alert('Error', 'No se pudieron actualizar los datos de calidad.');
+            Alert.alert('Error', 'No se pudieron actualizar los datos de produccion.');
         }
     };
 
@@ -253,7 +255,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
             <View style={styles.topContainer}>
                 <Text style={styles.userText}>{nomina}    {nombre}     {area}</Text>
             </View>
-
+            <Text style={styles.Screen}>Recibir Hot Parts</Text>
             <View style={styles.inputContainer}>
                 <TextInput
                     style={styles.input}
@@ -262,7 +264,6 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
                     placeholder="Buscar Pieza"
                 />
             </View>
-
 
             <View style={styles.tableContainer}>
                 {loading ? (
@@ -286,15 +287,6 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
                 )}
             </View>
 
-            {filteredHotParts.length === 1 && isSearchActive && (
-                <TouchableOpacity
-                    style={[styles.entregarButton, selectedItems.length === 0 && styles.disabledButton]}
-                    onPress={handleRecibirHotPart}
-                    disabled={selectedItems.length === 0}
-                >
-                    <Text style={styles.buttonText}>Entregar Hot Part</Text>
-                </TouchableOpacity>
-            )}
             {selectedItems.length > 0 && (
                 <TouchableOpacity
                     style={[styles.entregarButton, selectedItems.length === 0 && styles.disabledButton]}
@@ -431,12 +423,12 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: 'black',
         marginBottom: 5,
-        marginTop: 10,
+        marginTop: 1,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 35,
+        marginTop: 10,
         marginBottom: 1
     },
     input: {
@@ -461,7 +453,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     tableContainer: {
-        marginTop: 10,
+        marginTop: 20,
         width: '90%',
     },
     tableRow: {
@@ -515,6 +507,14 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         width: '100%',
         marginTop: 20,
+    },
+    Screen: {
+        fontSize: 14,
+        color: 'black',
+        marginBottom: 5,
+        marginTop: 30,
+        textAlign: 'center',
+        backgroundColor: '#3498db'
     },
     confirmButton: {
         backgroundColor: '#0e5699',

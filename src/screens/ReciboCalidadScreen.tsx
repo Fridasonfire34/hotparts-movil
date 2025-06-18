@@ -231,7 +231,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
             const response = await axios.get('http://192.168.16.146:3002/api/produccion');
         } catch (error) {
             console.error('Error al obtener datos de calidad:', error);
-            Alert.alert('Error', 'No se pudieron actualizar los datos de calidad.');
+            Alert.alert('Error', 'No se pudieron actualizar los datos de produccion.');
         }
     };
 
