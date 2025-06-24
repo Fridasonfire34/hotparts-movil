@@ -309,14 +309,14 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'flex-start',
         alignItems: 'center',
-        paddingVertical: 10,
+      //  paddingVertical: 10,
     },
     headerRow: {
-        borderBottomWidth: 1,
+     //   borderBottomWidth: 1,
         borderColor: '#363636',
         flexDirection: 'row',
-        paddingVertical: 10,
-        paddingHorizontal: 5,
+       // paddingVertical: 10,
+       // paddingHorizontal: 5,
     },
     cellText: {
         fontSize: 13,
@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
     },
     topContainer: {
         position: 'absolute',
-        top: 20,
+       // top: 20,
         left: 20,
         right: 20,
         alignItems: 'center',
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 75,
+        marginTop: 35,
         marginBottom: 1
     },
     input: {
@@ -383,9 +383,6 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 16,
         textAlign: 'center',
-    },
-    disabledButton: {
-        backgroundColor: '#cccccc',
     },
     tableContainer: {
         marginTop: 20,
@@ -420,6 +417,11 @@ const styles = StyleSheet.create({
         borderRadius: 5,
         marginTop: 20,
         width: '90%',
+        position: 'absolute',
+        bottom: 20,
+    },
+    disabledButton: {
+        backgroundColor: '#cccccc',
     },
     modalBackground: {
         flex: 1,

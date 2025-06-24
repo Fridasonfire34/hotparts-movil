@@ -480,6 +480,9 @@ const styles = StyleSheet.create({
         position: 'absolute',
         bottom: 20,
     },
+    disabledButton: {
+        backgroundColor: '#cccccc',
+    },
     modalBackground: {
         flex: 1,
         justifyContent: 'center',
@@ -529,9 +532,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         borderRadius: 5,
         width: '48%',
-    },
-    disabledButton: {
-        backgroundColor: '#cccccc',
     },
 });
 

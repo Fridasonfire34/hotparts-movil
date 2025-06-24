@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, TextInput, Button, Text, StyleSheet, TouchableOpacity, Image, ImageBackground } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, Keyboard } from 'react-native';
+import { TouchableWithoutFeedback } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StackNavigationProp } from '@react-navigation/stack';
 import logo from './assets/LoginIcon.jpg';
@@ -20,6 +22,7 @@ interface Props {
 const LoginScreen: React.FC<Props> = ({ navigation }) => {
     const [nomina, setNomina] = useState('');
     const [password, setPassword] = useState('');
+    const passwordRef = useRef<TextInput>(null);
     const [error, setError] = useState('');
 
     const handleLogin = async () => {
@@ -69,42 +72,54 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         }
     };
 
-
-    return (
+return(
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+    >
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
         <ImageBackground
-            source={require('./assets/fondo1.jpg')}
-            resizeMode="cover"
-            style={styles.container}
+          source={require('./assets/fondo1.jpg')}
+          resizeMode="cover"
+          style={styles.container}
         >
-            <Text style={styles.headerText}>Iniciar Sesión en Hot Parts</Text>
-
-            <Image source={logo} style={styles.image} />
-
-            <View style={styles.inputContainer}>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Nómina"
-                    value={nomina}
-                    onChangeText={setNomina}
-                    placeholderTextColor="#999"
-                />
-                <TextInput
-                    style={styles.input}
-                    placeholder="Contraseña"
-                    secureTextEntry
-                    value={password}
-                    onChangeText={setPassword}
-                    placeholderTextColor="#999"
-                />
-                {error ? <Text style={styles.error}>{error}</Text> : null}
-
-                <TouchableOpacity style={styles.button} onPress={handleLogin}>
-                    <Text style={styles.buttonText}>Iniciar sesión</Text>
-                </TouchableOpacity>
-            </View>
-            <Text style={styles.footerText}>TMP Hot Parts 2025 ©</Text>
-        </ImageBackground >
-    );
+          <Text style={styles.headerText}>Iniciar Sesión en Hot Parts</Text>
+  
+          <Image source={logo} style={styles.image} />
+  
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder="Nómina"
+              value={nomina}
+              onChangeText={setNomina}
+              placeholderTextColor="#999"
+              onSubmitEditing={() => passwordRef?.current?.focus()}
+            />
+            <TextInput
+              style={styles.input}
+              ref={passwordRef}
+              placeholder="Contraseña"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+              placeholderTextColor="#999"
+              onSubmitEditing={handleLogin}
+            />
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+  
+            <TouchableOpacity style={styles.button} onPress={handleLogin}>
+              <Text style={styles.buttonText}>Iniciar sesión</Text>
+            </TouchableOpacity>
+          </View>
+  
+          <Text style={styles.footerText}>TMP Hot Parts 2025 ©</Text>
+        </ImageBackground>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  </TouchableWithoutFeedback>
+);
 };
 
 const styles = StyleSheet.create({

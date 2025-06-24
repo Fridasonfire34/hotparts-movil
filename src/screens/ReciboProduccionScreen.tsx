@@ -365,6 +365,9 @@ const styles = StyleSheet.create({
         position: 'absolute',
         bottom: 20,
     },
+    disabledButton: {
+        backgroundColor: '#cccccc',
+    },
     modalBackground: {
         flex: 1,
         justifyContent: 'center',
@@ -404,10 +407,7 @@ const styles = StyleSheet.create({
     boldText: {
         fontWeight: 'bold',
         fontSize: 16,
-    },
-    disabledButton: {
-        backgroundColor: '#cccccc',
-    },
+    }
 });
 
 export default ReciboProduccionScreen;

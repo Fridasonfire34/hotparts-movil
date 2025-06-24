@@ -504,9 +504,6 @@ const styles = StyleSheet.create({
         fontSize: 16,
         textAlign: 'center',
     },
-    disabledButton: {
-        backgroundColor: '#cccccc',
-    },
     tableContainer: {
         marginTop: 20,
         width: '90%',
@@ -540,6 +537,11 @@ const styles = StyleSheet.create({
         borderRadius: 5,
         marginTop: 20,
         width: '90%',
+        position: 'absolute',
+        bottom: 20,
+    },
+    disabledButton: {
+        backgroundColor: '#cccccc',
     },
     modalBackground: {
         flex: 1,
