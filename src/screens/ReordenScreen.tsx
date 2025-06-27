@@ -602,7 +602,7 @@ const styles = StyleSheet.create({
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 10,
+        marginTop: 35,
         marginBottom: 1
     },
     input: {
