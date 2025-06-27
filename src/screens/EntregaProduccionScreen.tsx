@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ImageBackground, TextInput, TouchableOpacity, FlatList, BackHandler, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, ImageBackground, TextInput, TouchableOpacity, FlatList, BackHandler, Alert, Modal, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform } from 'react-native';
 import axios from 'axios';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from './App';
@@ -32,7 +32,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
     const [isQuantityModalVisible, setIsQuantityModalVisible] = useState(false);
     const [foliosCantidadUno, setFoliosCantidadUno] = useState<string[]>([]);
     const [isSearchActive, setIsSearchActive] = useState(false);
-
+    const [refreshing, setRefreshing] = useState(false);
 
     useEffect(() => {
         const fetchHotParts = async () => {
@@ -62,6 +62,19 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
 
         fetchHotParts();
     }, []);
+
+    const onRefresh = async () => {
+        setRefreshing(true);
+        try {
+            const response = await axios.get('http://192.168.16.146:3002/api/Produccion');
+            setHotParts(response.data);
+            setFilteredHotParts(response.data);
+        } catch (error) {
+            Alert.alert('Error', 'No se pudieron actualizar los datos.');
+        } finally {
+            setRefreshing(false);
+        }
+    };
 
     const handleSearch = (text: string) => {
         setSearchText(text);
@@ -284,51 +297,61 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
     };
 
     return (
-        <ImageBackground source={require('./assets/fondo2.jpg')} style={styles.container}>
-            <View style={styles.topContainer}>
-                <Text style={styles.userText}>{nomina}    {nombre}     {area}</Text>
-            </View>
-            <Text style={styles.Screen}>Entregar Hot Parts</Text>
-            <View style={styles.inputContainer}>
-                <TextInput
-                    style={styles.input}
-                    value={searchText}
-                    onChangeText={handleSearch}
-                    placeholder="Buscar Pieza"
-                />
-            </View>
-
-            <View style={styles.tableContainer}>
-                {loading ? (
-                    <Text>Cargando HotParts...</Text>
-                ) : filteredHotParts.length === 0 ? (
-                    <Text style={styles.NoResult}>No hay resultados</Text>
-                ) : (
-                    <>
-                        <View style={[styles.tableRow, styles.headerRow]}>
-                            <Text style={styles.headerSecuencia}>Secuencia</Text>
-                            <Text style={styles.headerParte}>N. Parte</Text>
-                            <Text style={styles.headerQty}>Qty</Text>
-                        </View>
-
-                        <FlatList
-                            data={filteredHotParts}
-                            renderItem={renderItem}
-                            keyExtractor={(item) => item.Folio.toString()}
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1 }}
+            >
+                <ImageBackground source={require('./assets/fondo2.jpg')} style={styles.container}>
+                    <View style={styles.topContainer}>
+                        <Text style={styles.userText}>{nomina} {nombre} {area}</Text>
+                    </View>
+    
+                    <View style={styles.inputContainer}>
+                        <TextInput
+                            style={styles.input}
+                            value={searchText}
+                            onChangeText={handleSearch}
+                            placeholder="Buscar Hot Part"
                         />
-                    </>
-                )}
-            </View>
-
-            {selectedItems.length > 0 && (
-                <TouchableOpacity
-                    style={[styles.entregarButton, selectedItems.length === 0 && styles.disabledButton]}
-                    onPress={handleRecibirHotPart}
-                    disabled={selectedItems.length === 0}
-                >
-                    <Text style={styles.buttonText}>Entregar Hot Part</Text>
-                </TouchableOpacity>
-            )}
+                    </View>
+    
+                    <View style={styles.tableContainer}>
+                        {loading ? (
+                            <Text>Cargando HotParts...</Text>
+                        ) : filteredHotParts.length === 0 ? (
+                            <Text style={styles.NoResult}>No hay resultados</Text>
+                        ) : (
+                            <>
+                                <View style={[styles.tableRow, styles.headerRow]}>
+                                    <Text style={styles.headerSecuencia}>Secuencia</Text>
+                                    <Text style={styles.headerParte}>N. Parte</Text>
+                                    <Text style={styles.headerQty}>Qty</Text>
+                                </View>
+    
+                                <FlatList
+                                    data={filteredHotParts}
+                                    renderItem={renderItem}
+                                    keyExtractor={(item) => item.Folio.toString()}
+                                    refreshing={refreshing}
+                                    onRefresh={onRefresh}
+                                    style={{ flexGrow: 0 }}
+                                />
+                            </>
+                        )}
+                    </View>
+    
+                    {selectedItems.length > 0 && (
+                        <View style={styles.fixedButtonContainer}>
+                            <TouchableOpacity
+                                style={[styles.entregarButton, selectedItems.length === 0 && styles.disabledButton]}
+                                onPress={handleRecibirHotPart}
+                                disabled={selectedItems.length === 0}
+                            >
+                                <Text style={styles.buttonText}>Entregar Hot Part</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
 
             <Modal
                 transparent={true}
@@ -370,40 +393,36 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
                 </View>
             </Modal>
             <Modal
-                transparent={true}
-                animationType="slide"
-                visible={isModalVisible}
-                onRequestClose={() => setIsModalVisible(false)}
-            >
-                <View style={styles.modalBackground}>
-                    <View style={styles.modalContainer}>
-                        <Text style={styles.modalTitle}>Ingresa el código de Recibo</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Ingresa el código"
-                            value={codigoEntrega}
-                            onChangeText={setCodigoEntrega}
-                            keyboardType="default"
-                        />
-                        <View style={styles.buttonsContainer}>
-                            <TouchableOpacity
-                                style={styles.confirmButton}
-                                onPress={handleVerificarCodigos}
-                            >
-                                <Text style={styles.buttonText}>Confirmar</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={styles.cancelButton}
-                                onPress={() => setIsModalVisible(false)}
-                            >
-                                <Text style={styles.buttonText}>Cancelar</Text>
-                            </TouchableOpacity>
+                        transparent={true}
+                        animationType="slide"
+                        visible={isModalVisible}
+                        onRequestClose={() => setIsModalVisible(false)}
+                    >
+                        <View style={styles.modalBackground}>
+                            <View style={styles.modalContainer}>
+                                <Text style={styles.modalTitle}>Ingresa el código de Recibo</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Ingresa el código"
+                                    value={codigoEntrega}
+                                    onChangeText={setCodigoEntrega}
+                                    keyboardType="default"
+                                />
+                                <View style={styles.buttonsContainer}>
+                                    <TouchableOpacity style={styles.confirmButton} onPress={handleVerificarCodigos}>
+                                        <Text style={styles.buttonText}>Confirmar</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={styles.cancelButton} onPress={() => setIsModalVisible(false)}>
+                                        <Text style={styles.buttonText}>Cancelar</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
                         </View>
-                    </View>
-                </View>
-            </Modal>
-        </ImageBackground>
-    );
+                    </Modal>
+                </ImageBackground>
+            </KeyboardAvoidingView>
+        </TouchableWithoutFeedback>
+    );    
 };
 
 
@@ -412,14 +431,14 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'flex-start',
         alignItems: 'center',
-        paddingVertical: 10,
+      //  paddingVertical: 10,
     },
     headerRow: {
-        borderBottomWidth: 1,
+     //   borderBottomWidth: 1,
         borderColor: '#363636',
         flexDirection: 'row',
-        paddingVertical: 10,
-        paddingHorizontal: 5,
+       // paddingVertical: 10,
+       // paddingHorizontal: 5,
     },
     cellText: {
         fontSize: 13,
@@ -458,7 +477,7 @@ const styles = StyleSheet.create({
     },
     topContainer: {
         position: 'absolute',
-        top: 5,
+       // top: 20,
         left: 20,
         right: 20,
         alignItems: 'center',
@@ -480,7 +499,7 @@ const styles = StyleSheet.create({
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 15,
+        marginTop: 35,
         marginBottom: 1
     },
     input: {
@@ -537,13 +556,25 @@ const styles = StyleSheet.create({
         borderRadius: 5,
         marginTop: 20,
         width: '90%',
-        position: 'absolute',
-        bottom: 20,
+      //  position: 'absolute',
+      //  bottom: 20,
     },
     disabledButton: {
         backgroundColor: '#cccccc',
     },
-    modalBackground: {
+    fixedButtonContainer: {
+        position: 'absolute',
+        bottom: 20,
+        left: 0,
+        right: 0,
+        alignItems: 'center',
+      },
+      scrollContent: {
+        paddingHorizontal: 20,
+        paddingTop: 40,
+        paddingBottom: 100, // espacio para que el botón no tape la lista
+      },
+      modalBackground: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',

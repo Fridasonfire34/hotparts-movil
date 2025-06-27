@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ImageBackground, TextInput, TouchableOpacity, FlatList, BackHandler, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, ImageBackground, TextInput, TouchableOpacity, FlatList, BackHandler, Alert, Modal, Keyboard, Platform, KeyboardAvoidingView, TouchableWithoutFeedback } from 'react-native';
 import axios from 'axios';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from './App';
@@ -31,6 +31,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
     const [isQuantityModalVisible, setIsQuantityModalVisible] = useState(false);
     const [foliosCantidadUno, setFoliosCantidadUno] = useState<string[]>([]);
     const [isSearchActive, setIsSearchActive] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
 
     useEffect(() => {
         const fetchHotParts = async () => {
@@ -74,6 +75,19 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
         );
 
         setFilteredHotParts(filtered);
+    };
+
+    const onRefresh = async () => {
+        setRefreshing(true);
+        try {
+            const response = await axios.get('http://192.168.16.146:3002/api/Produccion');
+            setHotParts(response.data);
+            setFilteredHotParts(response.data);
+        } catch (error) {
+            Alert.alert('Error', 'No se pudieron actualizar los datos.');
+        } finally {
+            setRefreshing(false);
+        }
     };
 
     const toggleSelectItem = (item: HotPart) => {
@@ -251,51 +265,61 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
     };
 
     return (
-        <ImageBackground source={require('./assets/fondo2.jpg')} style={styles.container}>
-            <View style={styles.topContainer}>
-                <Text style={styles.userText}>{nomina}    {nombre}     {area}</Text>
-            </View>
-            <Text style={styles.Screen}>Recibir Hot Parts</Text>
-            <View style={styles.inputContainer}>
-                <TextInput
-                    style={styles.input}
-                    value={searchText}
-                    onChangeText={handleSearch}
-                    placeholder="Buscar Pieza"
-                />
-            </View>
-
-            <View style={styles.tableContainer}>
-                {loading ? (
-                    <Text>Cargando HotParts...</Text>
-                ) : filteredHotParts.length === 0 ? (
-                    <Text style={styles.NoResult}>No hay resultados</Text>
-                ) : (
-                    <>
-                        <View style={[styles.tableRow, styles.headerRow]}>
-                            <Text style={styles.headerSecuencia}>Secuencia</Text>
-                            <Text style={styles.headerParte}>N. Parte</Text>
-                            <Text style={styles.headerQty}>Qty</Text>
-                        </View>
-
-                        <FlatList
-                            data={filteredHotParts}
-                            renderItem={renderItem}
-                            keyExtractor={(item) => item.Folio.toString()}
+<TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1 }}
+            >
+                <ImageBackground source={require('./assets/fondo2.jpg')} style={styles.container}>
+                    <View style={styles.topContainer}>
+                        <Text style={styles.userText}>{nomina} {nombre} {area}</Text>
+                    </View>
+    
+                    <View style={styles.inputContainer}>
+                        <TextInput
+                            style={styles.input}
+                            value={searchText}
+                            onChangeText={handleSearch}
+                            placeholder="Buscar Hot Part"
                         />
-                    </>
-                )}
-            </View>
-
-            {selectedItems.length > 0 && (
-                <TouchableOpacity
-                    style={[styles.entregarButton, selectedItems.length === 0 && styles.disabledButton]}
-                    onPress={handleRecibirHotPart}
-                    disabled={selectedItems.length === 0}
-                >
-                    <Text style={styles.buttonText}>Recibir Hot Part</Text>
-                </TouchableOpacity>
-            )}
+                    </View>
+    
+                    <View style={styles.tableContainer}>
+                        {loading ? (
+                            <Text>Cargando HotParts...</Text>
+                        ) : filteredHotParts.length === 0 ? (
+                            <Text style={styles.NoResult}>No hay resultados</Text>
+                        ) : (
+                            <>
+                                <View style={[styles.tableRow, styles.headerRow]}>
+                                    <Text style={styles.headerSecuencia}>Secuencia</Text>
+                                    <Text style={styles.headerParte}>N. Parte</Text>
+                                    <Text style={styles.headerQty}>Qty</Text>
+                                </View>
+    
+                                <FlatList
+                                    data={filteredHotParts}
+                                    renderItem={renderItem}
+                                    keyExtractor={(item) => item.Folio.toString()}
+                                    refreshing={refreshing}
+                                    onRefresh={onRefresh}
+                                    style={{ flexGrow: 0 }}
+                                />
+                            </>
+                        )}
+                    </View>
+    
+                    {selectedItems.length > 0 && (
+                        <View style={styles.fixedButtonContainer}>
+                            <TouchableOpacity
+                                style={[styles.entregarButton, selectedItems.length === 0 && styles.disabledButton]}
+                                onPress={handleRecibirHotPart}
+                                disabled={selectedItems.length === 0}
+                            >
+                                <Text style={styles.buttonText}>Entregar Hot Part</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
 
             <Modal
                 transparent={true}
@@ -358,8 +382,10 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
                         </TouchableOpacity>
                     </View>
                 </View>
-            </Modal>
-        </ImageBackground>
+                </Modal>
+                </ImageBackground>
+            </KeyboardAvoidingView>
+        </TouchableWithoutFeedback>
     );
 };
 
@@ -368,18 +394,26 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'flex-start',
         alignItems: 'center',
-        paddingVertical: 10,
+      //  paddingVertical: 10,
     },
     headerRow: {
-        borderBottomWidth: 1,
+     //   borderBottomWidth: 1,
         borderColor: '#363636',
         flexDirection: 'row',
-        paddingVertical: 10,
-        paddingHorizontal: 5,
+       // paddingVertical: 10,
+       // paddingHorizontal: 5,
     },
     cellText: {
         fontSize: 13,
         color: '#000',
+    },
+    Screen: {
+        fontSize: 14,
+        color: 'black',
+        marginBottom: 5,
+        marginTop: 30,
+        textAlign: 'center',
+        backgroundColor: '#3498db'
     },
     headerSecuencia: {
         flex: 1.2,
@@ -406,7 +440,7 @@ const styles = StyleSheet.create({
     },
     topContainer: {
         position: 'absolute',
-        top: 10,
+       // top: 20,
         left: 20,
         right: 20,
         alignItems: 'center',
@@ -423,12 +457,12 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: 'black',
         marginBottom: 5,
-        marginTop: 1,
+        marginTop: 10,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 10,
+        marginTop: 15,
         marginBottom: 1
     },
     input: {
@@ -465,6 +499,14 @@ const styles = StyleSheet.create({
         borderBottomColor: '#c4c4c4',
         paddingHorizontal: 10,
     },
+    tableCell: {
+        width: '45%',
+        fontSize: 16,
+        color: 'black',
+        textAlign: 'center',
+        padding: 3,
+        fontWeight: 'bold',
+    },
     NoResult: {
         fontSize: 25,
         textAlign: 'center',
@@ -477,13 +519,25 @@ const styles = StyleSheet.create({
         borderRadius: 5,
         marginTop: 20,
         width: '90%',
-        position: 'absolute',
-        bottom: 20,
+      //  position: 'absolute',
+      //  bottom: 20,
     },
     disabledButton: {
         backgroundColor: '#cccccc',
     },
-    modalBackground: {
+    fixedButtonContainer: {
+        position: 'absolute',
+        bottom: 20,
+        left: 0,
+        right: 0,
+        alignItems: 'center',
+      },
+      scrollContent: {
+        paddingHorizontal: 20,
+        paddingTop: 40,
+        paddingBottom: 100, // espacio para que el botón no tape la lista
+      },
+      modalBackground: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
@@ -496,6 +550,12 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         alignItems: 'center',
     },
+    buttonsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        width: '100%',
+        marginTop: 20,
+    },
     modalTitle: {
         fontSize: 18,
         fontWeight: 'bold',
@@ -503,21 +563,6 @@ const styles = StyleSheet.create({
     },
     codigoText: {
         fontSize: 16,
-        marginBottom: 20,
-    },
-    buttonsContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        width: '100%',
-        marginTop: 20,
-    },
-    Screen: {
-        fontSize: 14,
-        color: 'black',
-        marginBottom: 5,
-        marginTop: 30,
-        textAlign: 'center',
-        backgroundColor: '#3498db'
     },
     confirmButton: {
         backgroundColor: '#0e5699',
@@ -532,7 +577,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         borderRadius: 5,
         width: '48%',
-    },
+    }
 });
 
 export default ReciboCalidadScreen;
