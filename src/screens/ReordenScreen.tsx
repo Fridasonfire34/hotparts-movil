@@ -378,29 +378,34 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                         </View>
         
                         <View style={styles.tableContainer}>
-                            {loading ? (
-                                <ActivityIndicator size="large" color="#0e5699" />
-                            ) : filteredHotParts.length === 0 ? (
-                                <Text style={styles.NoResult}>No hay resultados</Text>
-                            ) : (
-                                <>
-                                    <View style={[styles.tableRow, styles.headerRow]}>
-                                        <Text style={styles.headerSecuencia}>Secuencia</Text>
-                                        <Text style={styles.headerParte}>N. Parte</Text>
-                                        <Text style={styles.headerQty}>Qty</Text>
-                                    </View>
-        
-                                    <FlatList
-                                        data={filteredHotParts}
-                                        renderItem={renderItem}
-                                        keyExtractor={(item) => item.Folio.toString()}
-                                        refreshing={refreshing}
-                                        onRefresh={onRefresh}
-                                        style={{ flexGrow: 0 }}
-                                    />
-                                </>
-                            )}
-                        </View>
+    {loading ? (
+        <ActivityIndicator size="large" color="#0e5699" />
+    ) : (
+        <FlatList
+            data={filteredHotParts}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.Folio.toString()}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            ListEmptyComponent={
+                <Text style={styles.NoResult}>No hay resultados</Text>
+            }
+            ListHeaderComponent={
+                filteredHotParts.length > 0 ? (
+                    <View style={[styles.tableRow, styles.headerRow]}>
+                        <Text style={styles.headerSecuencia}>Secuencia</Text>
+                        <Text style={styles.headerParte}>N. Parte</Text>
+                        <Text style={styles.headerQty}>Qty</Text>
+                    </View>
+                ) : null
+            }
+            contentContainerStyle={{
+                flexGrow: 1,
+                justifyContent: filteredHotParts.length === 0 ? 'center' : 'flex-start',
+            }}
+        />
+    )}
+</View>
         
                         {selectedItems.length > 0 && (
                             <TouchableOpacity
@@ -602,7 +607,7 @@ const styles = StyleSheet.create({
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 35,
+        marginTop: 15,
         marginBottom: 1
     },
     input: {

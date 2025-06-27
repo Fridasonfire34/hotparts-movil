@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ImageBackground, TextInput, TouchableOpacity, FlatList, BackHandler, Alert, Modal, TouchableWithoutFeedback, KeyboardAvoidingView, Keyboard, Platform } from 'react-native';
+import { View, Text, StyleSheet, ImageBackground, TextInput, TouchableOpacity, FlatList, BackHandler, Alert, Modal, TouchableWithoutFeedback, KeyboardAvoidingView, Keyboard, Platform, ActivityIndicator } from 'react-native';
 import axios from 'axios';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from './App';
@@ -66,7 +66,7 @@ const EntregaCalidadScreen: React.FC<Props> = ({ route }) => {
     const onRefresh = async () => {
         setRefreshing(true);
         try {
-            const response = await axios.get('http://192.168.16.146:3002/api/Produccion');
+            const response = await axios.get('http://192.168.16.146:3002/api/calidad');
             setHotParts(response.data);
             setFilteredHotParts(response.data);
         } catch (error) {
@@ -317,30 +317,35 @@ const EntregaCalidadScreen: React.FC<Props> = ({ route }) => {
                         />
                     </View>
 
-            <View style={styles.tableContainer}>
-                {loading ? (
-                    <Text>Cargando HotParts...</Text>
-                ) : filteredHotParts.length === 0 ? (
-                    <Text style={styles.NoResult}>No hay resultados</Text>
-                ) : (
-                    <>
-                        <View style={[styles.tableRow, styles.headerRow]}>
-                            <Text style={styles.headerSecuencia}>Secuencia</Text>
-                            <Text style={styles.headerParte}>N. Parte</Text>
-                            <Text style={styles.headerQty}>Qty</Text>
-                        </View>
-
-                        <FlatList
-                                    data={filteredHotParts}
-                                    renderItem={renderItem}
-                                    keyExtractor={(item) => item.Folio.toString()}
-                                    refreshing={refreshing}
-                                    onRefresh={onRefresh}
-                                    style={{ flexGrow: 0 }}
-                                />
-                    </>
-                )}
-            </View>
+                    <View style={styles.tableContainer}>
+    {loading ? (
+        <ActivityIndicator size="large" color="#0e5699" />
+    ) : (
+        <FlatList
+            data={filteredHotParts}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.Folio.toString()}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            ListEmptyComponent={
+                <Text style={styles.NoResult}>No hay resultados</Text>
+            }
+            ListHeaderComponent={
+                filteredHotParts.length > 0 ? (
+                    <View style={[styles.tableRow, styles.headerRow]}>
+                        <Text style={styles.headerSecuencia}>Secuencia</Text>
+                        <Text style={styles.headerParte}>N. Parte</Text>
+                        <Text style={styles.headerQty}>Qty</Text>
+                    </View>
+                ) : null
+            }
+            contentContainerStyle={{
+                flexGrow: 1,
+                justifyContent: filteredHotParts.length === 0 ? 'center' : 'flex-start',
+            }}
+        />
+    )}
+</View>
 
             {selectedItems.length > 0 && (
                         <View style={styles.fixedButtonContainer}>
