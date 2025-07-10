@@ -75,6 +75,7 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
     };
 
     const onRefresh = async () => {
+        setLoading(true);
         setRefreshing(true);
         try {
             const response = await axios.get('http://192.168.16.192:3000/api/Programacion');
@@ -84,6 +85,7 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
             Alert.alert('Error', 'No se pudieron actualizar los datos.');
         } finally {
             setRefreshing(false);
+            setLoading(false);
         }
     };
 
@@ -163,10 +165,35 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
     const handleConfirmar = async () => {
         try {
             setIsModalVisible(false);
-            const response = await axios.get('http://192.168.16.192:3000/api/Programacion');
-        } catch (error) {
-            console.error('Error al obtener datos de calidad:', error);
-            Alert.alert('Error', 'No se pudieron actualizar los datos de calidad.');
+            setLoading(true);
+
+            try {
+                const response = await axios.get('http://192.168.16.192:3000/api/Programacion');
+                setHotParts(response.data);
+                setFilteredHotParts(response.data);
+            } catch (error) {
+                let errorMessage = '';
+
+                if (error.response) {
+                    errorMessage = `Error ${error.response.status}: ${error.response.data || 'No hay detalles disponibles'}`;
+                    console.error('Error al obtener los HotParts:', error.response.status, error.response.data);
+                } else if (error.request) {
+                    errorMessage = 'No se recibió respuesta del servidor.';
+                    console.error('No se recibió respuesta:', error.request);
+                } else {
+                    errorMessage = `Error en la solicitud: ${error.message}`;
+                    console.error('Error en la configuración de la solicitud:', error.message);
+                }
+
+                Alert.alert('Error al obtener los HotParts', errorMessage);
+            } finally {
+                setLoading(false);
+            }
+
+        } catch (outerError) {
+            console.error('Error inesperado en handleConfirmar:', outerError);
+            Alert.alert('Error inesperado', 'Ocurrió un error inesperado. Inténtalo de nuevo.');
+            setLoading(false);
         }
     };
 

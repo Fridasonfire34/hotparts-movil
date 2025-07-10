@@ -83,6 +83,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
 
 
     const onRefresh = async () => {
+        setLoading(true);
         setRefreshing(true);
         try {
             const response = await axios.get('http://192.168.16.192:3000/api/Programacion');
@@ -92,6 +93,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
             Alert.alert('Error', 'No se pudieron actualizar los datos.');
         } finally {
             setRefreshing(false);
+            setLoading(false);
         }
     };
 
