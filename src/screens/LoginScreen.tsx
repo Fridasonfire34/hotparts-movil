@@ -1,11 +1,12 @@
 import React, { useRef, useState } from 'react';
 import { View, TextInput, Button, Text, StyleSheet, TouchableOpacity, Image, ImageBackground } from 'react-native';
-import { KeyboardAvoidingView, Platform, ScrollView, Keyboard } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, Keyboard, PermissionsAndroid } from 'react-native';
 import { TouchableWithoutFeedback } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StackNavigationProp } from '@react-navigation/stack';
 import logo from './assets/LoginIcon.jpg';
 import messaging from '@react-native-firebase/messaging';
+import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 
 
 type RootStackParamList = {
@@ -25,11 +26,21 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     const passwordRef = useRef<TextInput>(null);
     const [error, setError] = useState('');
 
+    const requestCameraPermission = async (): Promise<boolean> => {
+        if (Platform.OS === 'ios') {
+            const result = await request(PERMISSIONS.IOS.CAMERA);
+            return result === RESULTS.GRANTED;
+        } else {
+            const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA);
+            return result === PermissionsAndroid.RESULTS.GRANTED;
+        }
+    };
+
     const handleLogin = async () => {
         try {
             setError('');
 
-            const response = await fetch('http://192.168.16.146:3002/api/login', {
+            const response = await fetch('http://192.168.16.192:3000/api/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -57,9 +68,15 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
                     },
                     body: JSON.stringify({
                         token: token,
-                        nomina: nomina, // o data.user.id si así lo llamas
+                        nomina: nomina,
                     }),
                 });
+
+                // ✅ Solicitar permiso de cámara después de iniciar sesión
+                const cameraGranted = await requestCameraPermission();
+                if (!cameraGranted) {
+                    console.warn('Permiso de cámara no concedido');
+                }
 
                 navigation.navigate('Menu');
             } else {
@@ -72,54 +89,55 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         }
     };
 
-return(
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={{ flex: 1 }}
-    >
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <ImageBackground
-          source={require('./assets/fondo1.jpg')}
-          resizeMode="cover"
-          style={styles.container}
-        >
-          <Text style={styles.headerText}>Iniciar Sesión en Hot Parts</Text>
-  
-          <Image source={logo} style={styles.image} />
-  
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="Nómina"
-              value={nomina}
-              onChangeText={setNomina}
-              placeholderTextColor="#999"
-              onSubmitEditing={() => passwordRef?.current?.focus()}
-            />
-            <TextInput
-              style={styles.input}
-              ref={passwordRef}
-              placeholder="Contraseña"
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-              placeholderTextColor="#999"
-              onSubmitEditing={handleLogin}
-            />
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-  
-            <TouchableOpacity style={styles.button} onPress={handleLogin}>
-              <Text style={styles.buttonText}>Iniciar sesión</Text>
-            </TouchableOpacity>
-          </View>
-  
-          <Text style={styles.footerText}>TMP Hot Parts 2025 ©</Text>
-        </ImageBackground>
-      </ScrollView>
-    </KeyboardAvoidingView>
-  </TouchableWithoutFeedback>
-);
+
+    return (
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                style={{ flex: 1 }}
+            >
+                <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+                    <ImageBackground
+                        source={require('./assets/fondo1.jpg')}
+                        resizeMode="cover"
+                        style={styles.container}
+                    >
+                        <Text style={styles.headerText}>Iniciar Sesión en Hot Parts</Text>
+
+                        <Image source={logo} style={styles.image} />
+
+                        <View style={styles.inputContainer}>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Nómina"
+                                value={nomina}
+                                onChangeText={setNomina}
+                                placeholderTextColor="#999"
+                                onSubmitEditing={() => passwordRef?.current?.focus()}
+                            />
+                            <TextInput
+                                style={styles.input}
+                                ref={passwordRef}
+                                placeholder="Contraseña"
+                                secureTextEntry
+                                value={password}
+                                onChangeText={setPassword}
+                                placeholderTextColor="#999"
+                                onSubmitEditing={handleLogin}
+                            />
+                            {error ? <Text style={styles.error}>{error}</Text> : null}
+
+                            <TouchableOpacity style={styles.button} onPress={handleLogin}>
+                                <Text style={styles.buttonText}>Iniciar sesión</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text style={styles.footerText}>TMP Hot Parts 2025 ©</Text>
+                    </ImageBackground>
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </TouchableWithoutFeedback>
+    );
 };
 
 const styles = StyleSheet.create({

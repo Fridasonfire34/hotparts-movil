@@ -41,7 +41,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
         const fetchHotParts = async () => {
             setLoading(true);
             try {
-                const response = await axios.get('http://192.168.16.146:3002/api/calidad');
+                const response = await axios.get('http://192.168.16.192:3000/api/calidad');
                 setHotParts(response.data);
                 setFilteredHotParts(response.data);
             } catch (error) {
@@ -77,7 +77,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
     const onRefresh = async () => {
         setRefreshing(true);
         try {
-            const response = await axios.get('http://192.168.16.146:3002/api/calidad');
+            const response = await axios.get('http://192.168.16.192:3000/api/calidad');
             setHotParts(response.data);
             setFilteredHotParts(response.data);
         } catch (error) {
@@ -85,7 +85,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
         } finally {
             setRefreshing(false);
         }
-    };    
+    };
 
     const handleSearch = (text: string) => {
         setSearchText(text);
@@ -130,7 +130,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
             const numerosParte = rowsWithQuantityOne.map((item) => item['Numero de Parte']);
 
             try {
-                const response = await axios.post('http://192.168.16.146:3002/api/cantidadReorden', {
+                const response = await axios.post('http://192.168.16.192:3000/api/cantidadReorden', {
                     folios,
                     cantidades,
                     ordenesCompra,
@@ -172,7 +172,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
         }
 
         try {
-            const response = await axios.post('http://192.168.16.146:3002/api/cantidadReorden', {
+            const response = await axios.post('http://192.168.16.192:3000/api/cantidadReorden', {
                 folios: [item.Folio],
                 cantidades: [quantityToDeliver],
                 nomina: nomina,
@@ -203,24 +203,24 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
             const foliosSeleccionados = selectedItems.map(item => item.Folio);
             const secuencias = selectedItems.map(item => item['Secuencia']);
 
-            const response = await axios.post('http://192.168.16.146:3002/api/ComentariosReorden', {
+            const response = await axios.post('http://192.168.16.192:3000/api/ComentariosReorden', {
                 folios: foliosSeleccionados,
                 comentario,
                 nomina: nomina
             });
 
             if (response.data.success) {
-                await axios.post('http://192.168.16.146:3002/api/estatusReorden', {
+                await axios.post('http://192.168.16.192:3000/api/estatusReorden', {
                     folios: foliosSeleccionados,
                     nomina: nomina
                 });
 
-                await axios.post('http://192.168.16.146:3002/api/guardarMovimientoReorden', {
+                await axios.post('http://192.168.16.192:3000/api/guardarMovimientoReorden', {
                     folios: foliosSeleccionados,
                     nomina: nomina
                 });
 
-                await axios.post('http://192.168.16.146:3002/api/reordenNotif', {
+                await axios.post('http://192.168.16.192:3000/api/reordenNotif', {
                     secuencias: secuencias,
                 });
 
@@ -228,7 +228,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                     {
                         text: 'OK',
                         onPress: async () => {
-                            const updateResponse = await axios.get('http://192.168.16.146:3002/api/calidad');
+                            const updateResponse = await axios.get('http://192.168.16.192:3000/api/calidad');
                             setHotParts(updateResponse.data);
                             setFilteredHotParts(updateResponse.data);
                             setSelectedItems([]);
@@ -256,7 +256,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
         }
 
         try {
-            const response = await axios.post('http://192.168.16.146:3002/api/estatusReorden', {
+            const response = await axios.post('http://192.168.16.192:3000/api/estatusReorden', {
                 folios,
                 nomina
             });
@@ -270,13 +270,13 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                             text: 'OK',
                             onPress: async () => {
                                 try {
-                                    const guardarMovimientoResponse = await axios.post('http://192.168.16.146:3002/api/guardarMovimientoReorden', {
+                                    const guardarMovimientoResponse = await axios.post('http://192.168.16.192:3000/api/guardarMovimientoReorden', {
                                         folios: folios,
                                         nomina: nomina
                                     });
                                     console.log('Movimiento guardado:', guardarMovimientoResponse.data);
 
-                                    await axios.post('http://192.168.16.146:3002/api/reordenNotif', {
+                                    await axios.post('http://192.168.16.192:3000/api/reordenNotif', {
                                         secuencias: secuencias,
                                     });
 
@@ -284,7 +284,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                                     console.error('Error al guardar movimiento de reorden o enviar notificación:', error);
                                 }
 
-                                const updateResponse = await axios.get('http://192.168.16.146:3002/api/calidad');
+                                const updateResponse = await axios.get('http://192.168.16.192:3000/api/calidad');
                                 setHotParts(updateResponse.data);
                                 setFilteredHotParts(updateResponse.data);
                                 setSelectedItems([]);
@@ -317,7 +317,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
 
     const renderItem = ({ item }: { item: HotPart }) => {
         const isSelected = selectedItems.some((selectedItem) => selectedItem.Folio === item.Folio);
-    
+
         return (
             <TouchableOpacity
                 onPress={() => toggleSelectItem(item)}
@@ -331,206 +331,206 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                 <Text style={styles.headerQty}>{item['Cantidad Faltante']}</Text>
             </TouchableOpacity>
         );
-    };    
+    };
 
-        return (
-            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={{ flex: 1 }}
-                >
-                    <ImageBackground source={require('./assets/fondo2.jpg')} style={styles.container}>
-                        
-                        <View style={styles.topContainer}>
-                            <Text style={styles.userText}>{nomina} {nombre} {area}</Text>
+    return (
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1 }}
+            >
+                <ImageBackground source={require('./assets/fondo2.jpg')} style={styles.container}>
+
+                    <View style={styles.topContainer}>
+                        <Text style={styles.userText}>{nomina} {nombre} {area}</Text>
+                    </View>
+
+                    <Modal
+                        transparent={true}
+                        animationType="fade"
+                        visible={mostrarAlertaSeleccionUnica}
+                        onRequestClose={() => setMostrarAlertaSeleccionUnica(false)}
+                    >
+                        <View style={styles.modalBackground}>
+                            <View style={styles.modalContainer}>
+                                <Text style={styles.modalTitle}>
+                                    Solo puedes seleccionar un Hot Part a la vez para realizar la reorden
+                                </Text>
+                                <TouchableOpacity
+                                    style={styles.confirmButton}
+                                    onPress={() => setMostrarAlertaSeleccionUnica(false)}
+                                >
+                                    <Text style={styles.buttonText}>Entendido</Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
-        
-                        <Modal
-                            transparent={true}
-                            animationType="fade"
-                            visible={mostrarAlertaSeleccionUnica}
-                            onRequestClose={() => setMostrarAlertaSeleccionUnica(false)}
+                    </Modal>
+
+                    <Text style={styles.Screen}>Reordenes</Text>
+
+                    <View style={styles.inputContainer}>
+                        <TextInput
+                            style={styles.input}
+                            value={searchText}
+                            onChangeText={handleSearch}
+                            placeholder="Buscar Pieza"
+                        />
+                    </View>
+
+                    <View style={styles.tableContainer}>
+                        {loading ? (
+                            <ActivityIndicator size="large" color="#0e5699" />
+                        ) : (
+                            <FlatList
+                                data={filteredHotParts}
+                                renderItem={renderItem}
+                                keyExtractor={(item) => item.Folio.toString()}
+                                refreshing={refreshing}
+                                onRefresh={onRefresh}
+                                ListEmptyComponent={
+                                    <Text style={styles.NoResult}>No hay resultados</Text>
+                                }
+                                ListHeaderComponent={
+                                    filteredHotParts.length > 0 ? (
+                                        <View style={[styles.tableRow, styles.headerRow]}>
+                                            <Text style={styles.headerSecuencia}>Secuencia</Text>
+                                            <Text style={styles.headerParte}>N. Parte</Text>
+                                            <Text style={styles.headerQty}>Qty</Text>
+                                        </View>
+                                    ) : null
+                                }
+                                contentContainerStyle={{
+                                    flexGrow: 1,
+                                    justifyContent: filteredHotParts.length === 0 ? 'center' : 'flex-start',
+                                }}
+                            />
+                        )}
+                    </View>
+
+                    {selectedItems.length > 0 && (
+                        <TouchableOpacity
+                            style={[styles.entregarButton, selectedItems.length === 0 && styles.disabledButton]}
+                            onPress={handleRecibirHotPart}
+                            disabled={selectedItems.length === 0}
                         >
-                            <View style={styles.modalBackground}>
-                                <View style={styles.modalContainer}>
-                                    <Text style={styles.modalTitle}>
-                                        Solo puedes seleccionar un Hot Part a la vez para realizar la reorden
-                                    </Text>
+                            <Text style={styles.buttonText}>Reordenar Hot Part</Text>
+                        </TouchableOpacity>
+                    )}
+
+                    <Modal
+                        transparent={true}
+                        animationType="slide"
+                        visible={isQuantityModalVisible}
+                        onRequestClose={() => setIsQuantityModalVisible(false)}
+                    >
+                        <View style={styles.modalBackground}>
+                            <View style={styles.modalContainer}>
+                                {selectedItems.length > 0 && currentItemIndex < selectedItems.length && (
+                                    <View key={selectedItems[currentItemIndex].Folio}>
+                                        <Text style={styles.modalTitle}>
+                                            El Hot Part: {selectedItems[currentItemIndex]['Numero de Parte']} contiene {selectedItems[currentItemIndex]['Cantidad Faltante']} piezas. ¿Cuántas se van a Reordenar?
+                                        </Text>
+                                        <TextInput
+                                            style={styles.input}
+                                            value={String(quantitiesToDeliver[selectedItems[currentItemIndex].Folio] || '')}
+                                            onChangeText={handleQuantityChange}
+                                            keyboardType="numeric"
+                                            placeholder="Piezas a Reordenar"
+                                        />
+                                        <View style={styles.buttonsContainer}>
+                                            <TouchableOpacity
+                                                style={styles.confirmButton}
+                                                onPress={handleQuantityConfirm}
+                                            >
+                                                <Text style={styles.buttonText}>Confirmar</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                style={styles.cancelButton}
+                                                onPress={() => setIsQuantityModalVisible(false)}
+                                            >
+                                                <Text style={styles.buttonText}>Cancelar</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                )}
+                            </View>
+                        </View>
+                    </Modal>
+
+                    <Modal
+                        transparent={true}
+                        animationType="fade"
+                        visible={showComentarioPrompt}
+                        onRequestClose={() => setShowComentarioPrompt(false)}
+                    >
+                        <View style={styles.modalBackground}>
+                            <View style={styles.modalContainer}>
+                                <Text style={styles.modalTitle}>¿Deseas agregar un comentario?</Text>
+                                <View style={styles.buttonsContainer}>
                                     <TouchableOpacity
                                         style={styles.confirmButton}
-                                        onPress={() => setMostrarAlertaSeleccionUnica(false)}
+                                        onPress={() => {
+                                            setShowComentarioPrompt(false);
+                                            setIsComentarioModalVisible(true);
+                                        }}
                                     >
-                                        <Text style={styles.buttonText}>Entendido</Text>
+                                        <Text style={styles.buttonText}>Sí</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={styles.cancelButton}
+                                        onPress={() => {
+                                            handleReordenSinComentario();
+                                        }}
+                                    >
+                                        <Text style={styles.buttonText}>No</Text>
                                     </TouchableOpacity>
                                 </View>
                             </View>
-                        </Modal>
-        
-                        <Text style={styles.Screen}>Reordenes</Text>
-        
-                        <View style={styles.inputContainer}>
-                            <TextInput
-                                style={styles.input}
-                                value={searchText}
-                                onChangeText={handleSearch}
-                                placeholder="Buscar Pieza"
-                            />
                         </View>
-        
-                        <View style={styles.tableContainer}>
-    {loading ? (
-        <ActivityIndicator size="large" color="#0e5699" />
-    ) : (
-        <FlatList
-            data={filteredHotParts}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.Folio.toString()}
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            ListEmptyComponent={
-                <Text style={styles.NoResult}>No hay resultados</Text>
-            }
-            ListHeaderComponent={
-                filteredHotParts.length > 0 ? (
-                    <View style={[styles.tableRow, styles.headerRow]}>
-                        <Text style={styles.headerSecuencia}>Secuencia</Text>
-                        <Text style={styles.headerParte}>N. Parte</Text>
-                        <Text style={styles.headerQty}>Qty</Text>
-                    </View>
-                ) : null
-            }
-            contentContainerStyle={{
-                flexGrow: 1,
-                justifyContent: filteredHotParts.length === 0 ? 'center' : 'flex-start',
-            }}
-        />
-    )}
-</View>
-        
-                        {selectedItems.length > 0 && (
-                            <TouchableOpacity
-                                style={[styles.entregarButton, selectedItems.length === 0 && styles.disabledButton]}
-                                onPress={handleRecibirHotPart}
-                                disabled={selectedItems.length === 0}
-                            >
-                                <Text style={styles.buttonText}>Reordenar Hot Part</Text>
-                            </TouchableOpacity>
-                        )}
-        
-                        <Modal
-                            transparent={true}
-                            animationType="slide"
-                            visible={isQuantityModalVisible}
-                            onRequestClose={() => setIsQuantityModalVisible(false)}
-                        >
-                            <View style={styles.modalBackground}>
-                                <View style={styles.modalContainer}>
-                                    {selectedItems.length > 0 && currentItemIndex < selectedItems.length && (
-                                        <View key={selectedItems[currentItemIndex].Folio}>
-                                            <Text style={styles.modalTitle}>
-                                                El Hot Part: {selectedItems[currentItemIndex]['Numero de Parte']} contiene {selectedItems[currentItemIndex]['Cantidad Faltante']} piezas. ¿Cuántas se van a Reordenar?
-                                            </Text>
-                                            <TextInput
-                                                style={styles.input}
-                                                value={String(quantitiesToDeliver[selectedItems[currentItemIndex].Folio] || '')}
-                                                onChangeText={handleQuantityChange}
-                                                keyboardType="numeric"
-                                                placeholder="Piezas a Reordenar"
-                                            />
-                                            <View style={styles.buttonsContainer}>
-                                                <TouchableOpacity
-                                                    style={styles.confirmButton}
-                                                    onPress={handleQuantityConfirm}
-                                                >
-                                                    <Text style={styles.buttonText}>Confirmar</Text>
-                                                </TouchableOpacity>
-                                                <TouchableOpacity
-                                                    style={styles.cancelButton}
-                                                    onPress={() => setIsQuantityModalVisible(false)}
-                                                >
-                                                    <Text style={styles.buttonText}>Cancelar</Text>
-                                                </TouchableOpacity>
-                                            </View>
-                                        </View>
-                                    )}
+                    </Modal>
+
+                    <Modal
+                        transparent={true}
+                        animationType="slide"
+                        visible={isComentarioModalVisible}
+                        onRequestClose={() => setIsComentarioModalVisible(false)}
+                    >
+                        <View style={styles.modalBackground}>
+                            <View style={styles.modalContainer}>
+                                <Text style={styles.modalTitle}>Agregar Comentario</Text>
+                                <TextInput
+                                    style={styles.inputComentario}
+                                    placeholder="Escribe un comentario"
+                                    value={comentario}
+                                    onChangeText={setComentario}
+                                    multiline={true}
+                                    numberOfLines={4}
+                                />
+                                <View style={styles.buttonsContainer}>
+                                    <TouchableOpacity
+                                        style={styles.confirmButton}
+                                        onPress={handleConfirmarComentario}
+                                    >
+                                        <Text style={styles.buttonText}>Confirmar</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={styles.cancelButton}
+                                        onPress={() => {
+                                            setIsComentarioModalVisible(false);
+                                            setIsQuantityModalVisible(true);
+                                        }}
+                                    >
+                                        <Text style={styles.buttonText}>Cancelar</Text>
+                                    </TouchableOpacity>
                                 </View>
                             </View>
-                        </Modal>
-        
-                        <Modal
-                            transparent={true}
-                            animationType="fade"
-                            visible={showComentarioPrompt}
-                            onRequestClose={() => setShowComentarioPrompt(false)}
-                        >
-                            <View style={styles.modalBackground}>
-                                <View style={styles.modalContainer}>
-                                    <Text style={styles.modalTitle}>¿Deseas agregar un comentario?</Text>
-                                    <View style={styles.buttonsContainer}>
-                                        <TouchableOpacity
-                                            style={styles.confirmButton}
-                                            onPress={() => {
-                                                setShowComentarioPrompt(false);
-                                                setIsComentarioModalVisible(true);
-                                            }}
-                                        >
-                                            <Text style={styles.buttonText}>Sí</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity
-                                            style={styles.cancelButton}
-                                            onPress={() => {
-                                                handleReordenSinComentario();
-                                            }}
-                                        >
-                                            <Text style={styles.buttonText}>No</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-                            </View>
-                        </Modal>
-        
-                        <Modal
-                            transparent={true}
-                            animationType="slide"
-                            visible={isComentarioModalVisible}
-                            onRequestClose={() => setIsComentarioModalVisible(false)}
-                        >
-                            <View style={styles.modalBackground}>
-                                <View style={styles.modalContainer}>
-                                    <Text style={styles.modalTitle}>Agregar Comentario</Text>
-                                    <TextInput
-                                        style={styles.inputComentario}
-                                        placeholder="Escribe un comentario"
-                                        value={comentario}
-                                        onChangeText={setComentario}
-                                        multiline={true}
-                                        numberOfLines={4}
-                                    />
-                                    <View style={styles.buttonsContainer}>
-                                        <TouchableOpacity
-                                            style={styles.confirmButton}
-                                            onPress={handleConfirmarComentario}
-                                        >
-                                            <Text style={styles.buttonText}>Confirmar</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity
-                                            style={styles.cancelButton}
-                                            onPress={() => {
-                                                setIsComentarioModalVisible(false);
-                                                setIsQuantityModalVisible(true);
-                                            }}
-                                        >
-                                            <Text style={styles.buttonText}>Cancelar</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-                            </View>
-                        </Modal>
-        
-                    </ImageBackground>
-                </KeyboardAvoidingView>
-            </TouchableWithoutFeedback>
-        );  
+                        </View>
+                    </Modal>
+
+                </ImageBackground>
+            </KeyboardAvoidingView>
+        </TouchableWithoutFeedback>
+    );
 };
 
 

@@ -1,8 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ImageBackground, TextInput, TouchableOpacity, FlatList, BackHandler, Alert, Modal, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform, ActivityIndicator } from 'react-native';
+import {
+    View,
+    Text,
+    StyleSheet,
+    ImageBackground,
+    TextInput,
+    TouchableOpacity,
+    FlatList,
+    BackHandler,
+    Alert,
+    Modal,
+    ActivityIndicator,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    Keyboard,
+    TouchableWithoutFeedback
+} from 'react-native';
+import { Camera } from 'react-native-camera-kit';
 import axios from 'axios';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from './App';
+import { runOnJS } from 'react-native-reanimated';
 
 type EntregaProduccionScreenRouteProp = RouteProp<RootStackParamList, 'EntregaProduccion'>;
 
@@ -33,12 +52,13 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
     const [foliosCantidadUno, setFoliosCantidadUno] = useState<string[]>([]);
     const [isSearchActive, setIsSearchActive] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [isScannerVisible, setIsScannerVisible] = useState(false);
 
     useEffect(() => {
         const fetchHotParts = async () => {
             setLoading(true);
             try {
-                const response = await axios.get('http://192.168.16.146:3002/api/Produccion');
+                const response = await axios.get('http://192.168.16.192:3000/api/Produccion');
                 setHotParts(response.data);
                 setFilteredHotParts(response.data);
             } catch (error) {
@@ -66,7 +86,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
     const onRefresh = async () => {
         setRefreshing(true);
         try {
-            const response = await axios.get('http://192.168.16.146:3002/api/Produccion');
+            const response = await axios.get('http://192.168.16.192:3000/api/Produccion');
             setHotParts(response.data);
             setFilteredHotParts(response.data);
         } catch (error) {
@@ -117,7 +137,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
             const numerosParte = rowsWithQuantityOne.map((item) => item['Numero de Parte']);
 
             try {
-                const response = await axios.post('http://192.168.16.146:3002/api/cantidadEntrega', {
+                const response = await axios.post('http://192.168.16.192:3000/api/cantidadEntrega', {
                     folios,
                     cantidades,
                     ordenesCompra,
@@ -156,7 +176,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
         }
 
         try {
-            const response = await axios.post('http://192.168.16.146:3002/api/cantidadEntrega', {
+            const response = await axios.post('http://192.168.16.192:3000/api/cantidadEntrega', {
                 folios: [item.Folio],
                 cantidades: [quantityToDeliver],
                 nomina: nomina,
@@ -198,20 +218,20 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
                 return;
             }
 
-            const verifyResponse = await axios.post('http://192.168.16.146:3002/api/verificarCodigos', {
+            const verifyResponse = await axios.post('http://192.168.16.192:3000/api/verificarCodigos', {
                 folios: foliosSeleccionados,
                 codigoEntrega: codigoEntrega,
                 nomina: nomina
             });
 
             if (verifyResponse.data.success) {
-                const reciboResponse = await axios.post('http://192.168.16.146:3002/api/reciboCalidad', {
+                const reciboResponse = await axios.post('http://192.168.16.192:3000/api/reciboCalidad', {
                     folios: foliosSeleccionados,
                     nomina: nomina,
                 });
 
                 if (reciboResponse.data.success) {
-                    const guardarMovimientoResponse = await axios.post('http://192.168.16.146:3002/api/guardarMovimiento', {
+                    const guardarMovimientoResponse = await axios.post('http://192.168.16.192:3000/api/guardarMovimiento', {
                         folios: foliosSeleccionados,
                         nomina: nomina,
                     });
@@ -227,11 +247,11 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
                             text: 'OK',
                             onPress: async () => {
                                 try {
-                                    const updateResponse = await axios.get('http://192.168.16.146:3002/api/Produccion');
+                                    const updateResponse = await axios.get('http://192.168.16.192:3000/api/Produccion');
                                     setHotParts(updateResponse.data);
                                     setFilteredHotParts(updateResponse.data);
 
-                                    const entregaResponse = await axios.post('http://192.168.16.146:3002/api/entregaProduccion');
+                                    const entregaResponse = await axios.post('http://192.168.16.192:3000/api/entregaProduccion');
                                     console.log('Respuesta de entregaProduccion:', entregaResponse.data);
                                 } catch (error) {
                                     console.error('Error al ejecutar las APIs:', error);
@@ -250,7 +270,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
             console.error('Axios Error:', error.response ? error.response.data : error.message);
 
             try {
-                const eliminarResponse = await axios.post('http://192.168.16.146:3002/api/eliminarCodigos', {});
+                const eliminarResponse = await axios.post('http://192.168.16.192:3000/api/eliminarCodigos', {});
 
                 if (eliminarResponse.data.success) {
                     console.log('Códigos eliminados correctamente');
@@ -274,6 +294,10 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
             ...prev,
             [item.Folio]: newQuantity,
         }));
+    };
+
+    const handleEscanearQR = () => {
+        setIsScannerVisible(true);
     };
 
     const handleConfirmar = () => {
@@ -306,7 +330,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
                     <View style={styles.topContainer}>
                         <Text style={styles.userText}>{nomina} {nombre} {area}</Text>
                     </View>
-    
+
                     <View style={styles.inputContainer}>
                         <TextInput
                             style={styles.input}
@@ -315,37 +339,37 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
                             placeholder="Buscar Hot Part"
                         />
                     </View>
-    
+
                     <View style={styles.tableContainer}>
-    {loading ? (
-        <ActivityIndicator size="large" color="#0e5699" />
-    ) : (
-        <FlatList
-            data={filteredHotParts}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.Folio.toString()}
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            ListEmptyComponent={
-                <Text style={styles.NoResult}>No hay resultados</Text>
-            }
-            ListHeaderComponent={
-                filteredHotParts.length > 0 ? (
-                    <View style={[styles.tableRow, styles.headerRow]}>
-                        <Text style={styles.headerSecuencia}>Secuencia</Text>
-                        <Text style={styles.headerParte}>N. Parte</Text>
-                        <Text style={styles.headerQty}>Qty</Text>
+                        {loading ? (
+                            <ActivityIndicator size="large" color="#0e5699" />
+                        ) : (
+                            <FlatList
+                                data={filteredHotParts}
+                                renderItem={renderItem}
+                                keyExtractor={(item) => item.Folio.toString()}
+                                refreshing={refreshing}
+                                onRefresh={onRefresh}
+                                ListEmptyComponent={
+                                    <Text style={styles.NoResult}>No hay resultados</Text>
+                                }
+                                ListHeaderComponent={
+                                    filteredHotParts.length > 0 ? (
+                                        <View style={[styles.tableRow, styles.headerRow]}>
+                                            <Text style={styles.headerSecuencia}>Secuencia</Text>
+                                            <Text style={styles.headerParte}>N. Parte</Text>
+                                            <Text style={styles.headerQty}>Qty</Text>
+                                        </View>
+                                    ) : null
+                                }
+                                contentContainerStyle={{
+                                    flexGrow: 1,
+                                    justifyContent: filteredHotParts.length === 0 ? 'center' : 'flex-start',
+                                }}
+                            />
+                        )}
                     </View>
-                ) : null
-            }
-            contentContainerStyle={{
-                flexGrow: 1,
-                justifyContent: filteredHotParts.length === 0 ? 'center' : 'flex-start',
-            }}
-        />
-    )}
-</View>
-    
+
                     {selectedItems.length > 0 && (
                         <View style={styles.fixedButtonContainer}>
                             <TouchableOpacity
@@ -357,47 +381,52 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
                             </TouchableOpacity>
                         </View>
                     )}
+                    <Modal
+                        transparent={true}
+                        animationType="slide"
+                        visible={isQuantityModalVisible}
+                        onRequestClose={() => setIsQuantityModalVisible(false)}
+                    >
+                        <View style={styles.modalBackground}>
+                            <View style={styles.modalContainer}>
+                                {selectedItems.length > 0 && currentItemIndex < selectedItems.length && (
+                                    <View key={selectedItems[currentItemIndex].Folio}>
+                                        <Text style={styles.modalTitle}>
+                                            El Hot Part: {selectedItems[currentItemIndex]['Numero de Parte']} contiene {selectedItems[currentItemIndex]['Cantidad Faltante']} piezas. ¿Cuántas se van a entregar?
+                                        </Text>
 
-            <Modal
-                transparent={true}
-                animationType="slide"
-                visible={isQuantityModalVisible}
-                onRequestClose={() => setIsQuantityModalVisible(false)}
-            >
-                <View style={styles.modalBackground}>
-                    <View style={styles.modalContainer}>
-                        {selectedItems.length > 0 && currentItemIndex < selectedItems.length && (
-                            <View key={selectedItems[currentItemIndex].Folio}>
-                                <Text style={styles.modalTitle}>
-                                    El Hot Part: {selectedItems[currentItemIndex]['Numero de Parte']} contiene {selectedItems[currentItemIndex]['Cantidad Faltante por Entregar']} piezas. ¿Cuántas se van a entregar?
-                                </Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={String(quantitiesToDeliver[selectedItems[currentItemIndex].Folio] || '')}
-                                    onChangeText={handleQuantityChange}
-                                    keyboardType="numeric"
-                                    placeholder="Piezas a Recibir"
-                                />
-                                <View style={styles.buttonsContainer}>
-                                    <TouchableOpacity
-                                        style={styles.confirmButton}
-                                        onPress={handleQuantityConfirm}
-                                    >
-                                        <Text style={styles.buttonText}>Confirmar</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={styles.cancelButton}
-                                        onPress={() => setIsQuantityModalVisible(false)}
-                                    >
-                                        <Text style={styles.buttonText}>Cancelar</Text>
-                                    </TouchableOpacity>
-                                </View>
+                                        <TextInput
+                                            style={styles.inputCodigo}
+                                            placeholder="Cantidad a entregar"
+                                            keyboardType="numeric"
+                                            value={
+                                                quantitiesToDeliver[selectedItems[currentItemIndex].Folio]?.toString() || ''
+                                            }
+                                            onChangeText={handleQuantityChange}
+                                        />
+
+                                        <View style={styles.buttonsContainer}>
+                                            <TouchableOpacity
+                                                style={[styles.modalButton, { backgroundColor: '#0e5699' }]}
+                                                onPress={handleQuantityConfirm}
+                                            >
+                                                <Text style={styles.buttonText}>Confirmar</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                style={[styles.modalButton, { backgroundColor: '#c4c4c4' }]}
+                                                onPress={() => setIsQuantityModalVisible(false)}
+                                            >
+                                                <Text style={styles.buttonText}>Cancelar</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                )}
                             </View>
-                        )}
-                    </View>
-                </View>
-            </Modal>
-            <Modal
+                        </View>
+                    </Modal>
+
+                    {/* MODAL: Confirmar Código de Recibo */}
+                    <Modal
                         transparent={true}
                         animationType="slide"
                         visible={isModalVisible}
@@ -406,28 +435,64 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
                         <View style={styles.modalBackground}>
                             <View style={styles.modalContainer}>
                                 <Text style={styles.modalTitle}>Ingresa el código de Recibo</Text>
+
                                 <TextInput
-                                    style={styles.input}
+                                    style={styles.inputCodigo}
                                     placeholder="Ingresa el código"
                                     value={codigoEntrega}
                                     onChangeText={setCodigoEntrega}
                                     keyboardType="default"
                                 />
+
                                 <View style={styles.buttonsContainer}>
-                                    <TouchableOpacity style={styles.confirmButton} onPress={handleVerificarCodigos}>
+                                    <TouchableOpacity
+                                        style={[styles.modalButtonScan, { backgroundColor: '#4CAF50' }]}
+                                        onPress={handleEscanearQR}
+                                    >
+                                        <Text style={styles.buttonText}>Escanear QR</Text>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        style={[styles.modalButton, { backgroundColor: '#0e5699' }]}
+                                        onPress={handleVerificarCodigos}
+                                    >
                                         <Text style={styles.buttonText}>Confirmar</Text>
                                     </TouchableOpacity>
-                                    <TouchableOpacity style={styles.cancelButton} onPress={() => setIsModalVisible(false)}>
+
+                                    <TouchableOpacity
+                                        style={[styles.modalButton, { backgroundColor: '#c4c4c4' }]}
+                                        onPress={() => setIsModalVisible(false)}
+                                    >
                                         <Text style={styles.buttonText}>Cancelar</Text>
                                     </TouchableOpacity>
                                 </View>
                             </View>
                         </View>
                     </Modal>
+
+                    {/* MODAL: Escáner de Código QR */}
+                    {isScannerVisible && (
+                        <Modal
+                            animationType="slide"
+                            transparent={false}
+                            visible={isScannerVisible}
+                            onRequestClose={() => setIsScannerVisible(false)}
+                        >
+                            <Camera
+                                style={{ flex: 1 }}
+                                cameraType="back"
+                                scanBarcode={true}
+                                onReadCode={(event) => {
+                                    setCodigoEntrega(event.nativeEvent.codeStringValue);
+                                    setIsScannerVisible(false);
+                                }}
+                            />
+                        </Modal>
+                    )}
                 </ImageBackground>
             </KeyboardAvoidingView>
         </TouchableWithoutFeedback>
-    );    
+    );
 };
 
 
@@ -436,14 +501,20 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'flex-start',
         alignItems: 'center',
-      //  paddingVertical: 10,
+        //  paddingVertical: 10,
     },
     headerRow: {
-     //   borderBottomWidth: 1,
+        //   borderBottomWidth: 1,
         borderColor: '#363636',
         flexDirection: 'row',
-       // paddingVertical: 10,
-       // paddingHorizontal: 5,
+        // paddingVertical: 10,
+        // paddingHorizontal: 5,
+    },
+    inputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 35,
+        marginBottom: 1
     },
     cellText: {
         fontSize: 13,
@@ -460,7 +531,7 @@ const styles = StyleSheet.create({
     headerSecuencia: {
         flex: 1.2,
         textAlign: 'left',
-        marginLeft: 15,
+        marginLeft: 10,
         fontWeight: 'bold',
         color: '#000',
     },
@@ -482,14 +553,10 @@ const styles = StyleSheet.create({
     },
     topContainer: {
         position: 'absolute',
-       // top: 20,
+        // top: 20,
         left: 20,
         right: 20,
         alignItems: 'center',
-    },
-    boldText: {
-        fontWeight: 'bold',
-        fontSize: 16,
     },
     text: {
         fontSize: 20,
@@ -498,14 +565,8 @@ const styles = StyleSheet.create({
     userText: {
         fontSize: 12,
         color: 'black',
-        marginBottom: 5,
+        marginBottom: 10,
         marginTop: 10,
-    },
-    inputContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 35,
-        marginBottom: 1
     },
     input: {
         width: 250,
@@ -517,20 +578,19 @@ const styles = StyleSheet.create({
         marginRight: 10,
         fontSize: 16,
     },
-    searchButton: {
-        backgroundColor: '#0e5699',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 5,
-    },
-    buttonText: {
-        color: 'white',
-        fontSize: 16,
-        textAlign: 'center',
-    },
     tableContainer: {
-        marginTop: 20,
-        width: '90%',
+        marginTop: 2,
+        width: '95%',
+    },
+    fixedButtonContainer: {
+        position: 'absolute',
+        bottom: 20,
+        left: 0,
+        right: 0,
+        alignItems: 'center',
+    },
+    disabledButton: {
+        backgroundColor: '#cccccc',
     },
     tableRow: {
         flexDirection: 'row',
@@ -542,12 +602,12 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
     },
     tableCell: {
-        width: '45%',
-        fontSize: 16,
-        color: 'black',
+        width: '50%',
+        fontSize: 8,
+        // color: 'black',
         textAlign: 'center',
-        padding: 3,
-        fontWeight: 'bold',
+        // padding: 3,
+        //   fontWeight: 'bold',
     },
     NoResult: {
         fontSize: 25,
@@ -561,47 +621,13 @@ const styles = StyleSheet.create({
         borderRadius: 5,
         marginTop: 20,
         width: '90%',
-      //  position: 'absolute',
-      //  bottom: 20,
+        //  position: 'absolute',
+        //  bottom: 20,
     },
-    disabledButton: {
-        backgroundColor: '#cccccc',
-    },
-    fixedButtonContainer: {
-        position: 'absolute',
-        bottom: 20,
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-      },
-      scrollContent: {
+    scrollContent: {
         paddingHorizontal: 20,
         paddingTop: 40,
         paddingBottom: 100, // espacio para que el botón no tape la lista
-      },
-      modalBackground: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    },
-    modalContainer: {
-        width: '80%',
-        padding: 20,
-        backgroundColor: 'white',
-        borderRadius: 10,
-        alignItems: 'center',
-    },
-    buttonsContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        width: '100%',
-        marginTop: 20,
-    },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: 20,
     },
     codigoText: {
         fontSize: 16,
@@ -619,6 +645,67 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         borderRadius: 5,
         width: '48%',
-    }
+    },
+    modalBackground: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContainer: {
+        width: '90%',
+        backgroundColor: 'white',
+        padding: 20,
+        borderRadius: 10,
+        elevation: 5,
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 10,
+        textAlign: 'center',
+    },
+    buttonsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 2,
+    },
+    modalButton: {
+        flex: 1,
+        marginHorizontal: 5,
+        paddingVertical: 10,
+        borderRadius: 5,
+        alignItems: 'center',
+    },
+    modalButtonScan: {
+        flex: 1.2,
+        marginHorizontal: 4,
+        paddingVertical: 12,
+        borderRadius: 5,
+        alignItems: 'center',
+        width: '90%',
+    },
+    button: {
+        flex: 1,
+        marginHorizontal: 5,
+        backgroundColor: '#007AFF',
+        paddingVertical: 10,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    buttonText: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 16,
+        textAlign: 'center',
+    },
+    inputCodigo: {
+        borderWidth: 1,
+        borderColor: '#a9aaac',
+        borderRadius: 5,
+        padding: 10,
+        marginBottom: 20,
+        backgroundColor: '#cfcfcf',
+    },
 });
 export default EntregaProduccionScreen;

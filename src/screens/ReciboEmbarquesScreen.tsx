@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ImageBackground, TextInput, TouchableOpacity, F
 import axios from 'axios';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from './App';
+import QRCode from 'react-native-qrcode-svg';
 
 type ReciboCalidadScreenRouteProp = RouteProp<RootStackParamList, 'ReciboEmbarques'>;
 
@@ -33,11 +34,12 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
     const [isSearchActive, setIsSearchActive] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
 
+
     useEffect(() => {
         const fetchHotParts = async () => {
             setLoading(true);
             try {
-                const response = await axios.get('http://192.168.16.146:3002/api/calidad');
+                const response = await axios.get('http://192.168.16.192:3000/api/calidad');
                 setHotParts(response.data);
                 setFilteredHotParts(response.data);
             } catch (error) {
@@ -80,7 +82,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
     const onRefresh = async () => {
         setRefreshing(true);
         try {
-            const response = await axios.get('http://192.168.16.146:3002/api/calidad');
+            const response = await axios.get('http://192.168.16.192:3000/api/calidad');
             setHotParts(response.data);
             setFilteredHotParts(response.data);
         } catch (error) {
@@ -115,7 +117,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
             const numerosParte = rowsWithQuantityOne.map((item) => item['Numero de Parte']);
 
             try {
-                const response = await axios.post('http://192.168.16.146:3002/api/cantidadRecibo', {
+                const response = await axios.post('http://192.168.16.192:3000/api/cantidadRecibo', {
                     folios,
                     cantidades,
                     ordenesCompra,
@@ -127,7 +129,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
                     console.log('Filas con cantidad 1 procesadas correctamente.');
                     setFoliosCantidadUno(folios); // Guardamos esos folios
                     await generarCodigoRecibo();
-                    
+
                 } else {
                     Alert.alert('Error', response.data.message);
                 }
@@ -149,37 +151,36 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
     const handleQuantityConfirm = async () => {
         const item = selectedItems[currentItemIndex];
         const quantityToDeliver = quantitiesToDeliver[item.Folio];
-    
+
         if (!quantityToDeliver || quantityToDeliver <= 0 || quantityToDeliver > item['Cantidad Faltante']) {
             Alert.alert('Error', `La cantidad ingresada para el Hot Part ${item['Numero de Parte']} debe ser mayor a 0 y menor o igual a la cantidad disponible.`);
             return;
         }
-    
+
         try {
-            const response = await axios.post('http://192.168.16.146:3002/api/cantidadRecibo', {
+            const response = await axios.post('http://192.168.16.192:3000/api/cantidadRecibo', {
                 folios: [item.Folio],
                 cantidades: [quantityToDeliver],
                 nomina: nomina,
                 ordenesCompra: [item['Secuencia']],
                 numerosParte: [item['Numero de Parte']],
             });
-    
+
             if (response.data.success) {
                 console.log(`Cantidad registrada correctamente para Hot Part ${item['Numero de Parte']}`);
-    
+
                 // Llamada a generarCodigoRecibo después de registrar correctamente la cantidad
                 await generarCodigoRecibo(); // Esperamos a que termine de ejecutarse
-    
+
             } else {
                 Alert.alert('Error', response.data.message);
             }
-    
+
             if (currentItemIndex + 1 < selectedItems.length) {
                 setCurrentItemIndex(currentItemIndex + 1);
             } else {
                 setIsQuantityModalVisible(false);
                 setIsModalVisible(true);
-                // Generar código de recibo al final si ya se procesaron todos los items
                 await generarCodigoRecibo();
             }
         } catch (error) {
@@ -202,7 +203,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
 
         try {
             setLoading(true);
-            const response = await axios.post('http://192.168.16.146:3002/api/generarCodigo', {
+            const response = await axios.post('http://192.168.16.192:3000/api/generarCodigo', {
                 folios: foliosSeleccionados,
                 nomina
             });
@@ -240,7 +241,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
     const handleConfirmar = async () => {
         try {
             setIsModalVisible(false);
-            const response = await axios.get('http://192.168.16.146:3002/api/calidad');
+            const response = await axios.get('http://192.168.16.192:3000/api/calidad');
         } catch (error) {
             console.error('Error al obtener datos de calidad:', error);
             Alert.alert('Error', 'No se pudieron actualizar los datos de produccion.');
@@ -264,54 +265,54 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
 
     return (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                    <KeyboardAvoidingView
-                        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                        style={{ flex: 1 }}
-                    >
-                        <ImageBackground source={require('./assets/fondo2.jpg')} style={styles.container}>
-                            <View style={styles.topContainer}>
-                                <Text style={styles.userText}>{nomina} {nombre} {area}</Text>
-                            </View>
-            
-                            <View style={styles.inputContainer}>
-                                <TextInput
-                                    style={styles.input}
-                                    value={searchText}
-                                    onChangeText={handleSearch}
-                                    placeholder="Buscar Hot Part"
-                                />
-                            </View>
-
-                            <View style={styles.tableContainer}>
-    {loading ? (
-        <ActivityIndicator size="large" color="#0e5699" />
-    ) : (
-        <FlatList
-            data={filteredHotParts}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.Folio.toString()}
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            ListEmptyComponent={
-                <Text style={styles.NoResult}>No hay resultados</Text>
-            }
-            ListHeaderComponent={
-                filteredHotParts.length > 0 ? (
-                    <View style={[styles.tableRow, styles.headerRow]}>
-                        <Text style={styles.headerSecuencia}>Secuencia</Text>
-                        <Text style={styles.headerParte}>N. Parte</Text>
-                        <Text style={styles.headerQty}>Qty</Text>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1 }}
+            >
+                <ImageBackground source={require('./assets/fondo2.jpg')} style={styles.container}>
+                    <View style={styles.topContainer}>
+                        <Text style={styles.userText}>{nomina} {nombre} {area}</Text>
                     </View>
-                ) : null
-            }
-            contentContainerStyle={{
-                flexGrow: 1,
-                justifyContent: filteredHotParts.length === 0 ? 'center' : 'flex-start',
-            }}
-        />
-    )}
-</View>
-    
+
+                    <View style={styles.inputContainer}>
+                        <TextInput
+                            style={styles.input}
+                            value={searchText}
+                            onChangeText={handleSearch}
+                            placeholder="Buscar Hot Part"
+                        />
+                    </View>
+
+                    <View style={styles.tableContainer}>
+                        {loading ? (
+                            <ActivityIndicator size="large" color="#0e5699" />
+                        ) : (
+                            <FlatList
+                                data={filteredHotParts}
+                                renderItem={renderItem}
+                                keyExtractor={(item) => item.Folio.toString()}
+                                refreshing={refreshing}
+                                onRefresh={onRefresh}
+                                ListEmptyComponent={
+                                    <Text style={styles.NoResult}>No hay resultados</Text>
+                                }
+                                ListHeaderComponent={
+                                    filteredHotParts.length > 0 ? (
+                                        <View style={[styles.tableRow, styles.headerRow]}>
+                                            <Text style={styles.headerSecuencia}>Secuencia</Text>
+                                            <Text style={styles.headerParte}>N. Parte</Text>
+                                            <Text style={styles.headerQty}>Qty</Text>
+                                        </View>
+                                    ) : null
+                                }
+                                contentContainerStyle={{
+                                    flexGrow: 1,
+                                    justifyContent: filteredHotParts.length === 0 ? 'center' : 'flex-start',
+                                }}
+                            />
+                        )}
+                    </View>
+
                     {selectedItems.length > 0 && (
                         <View style={styles.fixedButtonContainer}>
                             <TouchableOpacity
@@ -319,73 +320,79 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
                                 onPress={handleRecibirHotPart}
                                 disabled={selectedItems.length === 0}
                             >
-                                <Text style={styles.buttonText}>Entregar Hot Part</Text>
+                                <Text style={styles.buttonText}>Recibir Hot Part</Text>
                             </TouchableOpacity>
                         </View>
                     )}
 
-            <Modal
-                transparent={true}
-                animationType="slide"
-                visible={isQuantityModalVisible}
-                onRequestClose={() => setIsQuantityModalVisible(false)}
-            >
-                <View style={styles.modalBackground}>
-                    <View style={styles.modalContainer}>
-                        {selectedItems.length > 0 && currentItemIndex < selectedItems.length && (
-                            <View key={selectedItems[currentItemIndex].Folio}>
-                                <Text style={styles.modalTitle}>
-                                    El Hot Part: {selectedItems[currentItemIndex]['Numero de Parte']} contiene {selectedItems[currentItemIndex]['Cantidad Faltante']} piezas. ¿Cuántas se van a recibir?
-                                </Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={String(quantitiesToDeliver[selectedItems[currentItemIndex].Folio] || '')}
-                                    onChangeText={handleQuantityChange}
-                                    keyboardType="numeric"
-                                    placeholder="Piezas a Recibir"
-                                />
-                                <View style={styles.buttonsContainer}>
-                                    <TouchableOpacity
-                                        style={styles.confirmButton}
-                                        onPress={handleQuantityConfirm}
-                                    >
-                                        <Text style={styles.buttonText}>Confirmar</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={styles.cancelButton}
-                                        onPress={() => setIsQuantityModalVisible(false)}
-                                    >
-                                        <Text style={styles.buttonText}>Cancelar</Text>
-                                    </TouchableOpacity>
-                                </View>
+                    <Modal
+                        transparent={true}
+                        animationType="slide"
+                        visible={isQuantityModalVisible}
+                        onRequestClose={() => setIsQuantityModalVisible(false)}
+                    >
+                        <View style={styles.modalBackground}>
+                            <View style={styles.modalContainer}>
+                                {selectedItems.length > 0 && currentItemIndex < selectedItems.length && (
+                                    <View key={selectedItems[currentItemIndex].Folio}>
+                                        <Text style={styles.modalTitle}>
+                                            El Hot Part: {selectedItems[currentItemIndex]['Numero de Parte']} contiene {selectedItems[currentItemIndex]['Cantidad Faltante']} piezas. ¿Cuántas se van a recibir?
+                                        </Text>
+                                        <TextInput
+                                            style={styles.input}
+                                            value={String(quantitiesToDeliver[selectedItems[currentItemIndex].Folio] || '')}
+                                            onChangeText={handleQuantityChange}
+                                            keyboardType="numeric"
+                                            placeholder="Piezas a Recibir"
+                                        />
+                                        <View style={styles.buttonsContainer}>
+                                            <TouchableOpacity
+                                                style={styles.confirmButton}
+                                                onPress={handleQuantityConfirm}
+                                            >
+                                                <Text style={styles.buttonText}>Confirmar</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                style={styles.cancelButton}
+                                                onPress={() => setIsQuantityModalVisible(false)}
+                                            >
+                                                <Text style={styles.buttonText}>Cancelar</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                )}
                             </View>
-                        )}
-                    </View>
-                </View>
-            </Modal>
-            <Modal
-                transparent={true}
-                animationType="slide"
-                visible={isModalVisible}
-                onRequestClose={() => setIsModalVisible(false)}
-            >
-                <View style={styles.modalBackground}>
-                    <View style={styles.modalContainer}>
-                        <Text style={styles.modalTitle}>Recibo de Hot Part</Text>
-                        <Text style={styles.codigoText}>
-                            El código de recibo es:
-                            <Text style={styles.boldText}> {codigoEntrega}</Text>
-                            . Por favor comparte este código a la persona que esta realizando la entrega.
-                        </Text>
-                        <TouchableOpacity
-                            style={styles.confirmButton}
-                            onPress={handleConfirmar}
-                        >
-                            <Text style={styles.buttonText}>OK</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-                </Modal>
+                        </View>
+                    </Modal>
+                    <Modal
+                        transparent={true}
+                        animationType="slide"
+                        visible={isModalVisible}
+                        onRequestClose={() => setIsModalVisible(false)}
+                    >
+                        <View style={styles.modalBackground}>
+                            <View style={styles.modalContainer}>
+                                <Text style={styles.modalTitle}>Recibo de Hot Part</Text>
+
+                                <View style={styles.qrContainer}>
+                                    <QRCode value={codigoEntrega || ' '} size={150} />
+                                </View>
+
+                                <Text style={styles.codigoTexto}>
+                                    Código: <Text style={styles.boldText}>{codigoEntrega}</Text>
+                                    <Text>. Por favor comparte este código con la persona que realiza la entrega.
+                                    </Text>
+                                </Text>
+
+                                <TouchableOpacity
+                                    style={styles.confirmButton}
+                                    onPress={handleConfirmar}
+                                >
+                                    <Text style={styles.buttonText}>OK</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </Modal>
                 </ImageBackground>
             </KeyboardAvoidingView>
         </TouchableWithoutFeedback>
@@ -397,14 +404,14 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'flex-start',
         alignItems: 'center',
-      //  paddingVertical: 10,
+        //  paddingVertical: 10,
     },
     headerRow: {
-     //   borderBottomWidth: 1,
+        //   borderBottomWidth: 1,
         borderColor: '#363636',
         flexDirection: 'row',
-       // paddingVertical: 10,
-       // paddingHorizontal: 5,
+        // paddingVertical: 10,
+        // paddingHorizontal: 5,
     },
     cellText: {
         fontSize: 13,
@@ -443,7 +450,7 @@ const styles = StyleSheet.create({
     },
     topContainer: {
         position: 'absolute',
-       // top: 20,
+        // top: 20,
         left: 20,
         right: 20,
         alignItems: 'center',
@@ -522,8 +529,8 @@ const styles = StyleSheet.create({
         borderRadius: 5,
         marginTop: 20,
         width: '90%',
-      //  position: 'absolute',
-      //  bottom: 20,
+        //  position: 'absolute',
+        //  bottom: 20,
     },
     disabledButton: {
         backgroundColor: '#cccccc',
@@ -534,13 +541,13 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         alignItems: 'center',
-      },
-      scrollContent: {
+    },
+    scrollContent: {
         paddingHorizontal: 20,
         paddingTop: 40,
         paddingBottom: 100, // espacio para que el botón no tape la lista
-      },
-      modalBackground: {
+    },
+    modalBackground: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
@@ -580,7 +587,16 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         borderRadius: 5,
         width: '48%',
-    }
+    },
+    qrContainer: {
+        alignItems: 'center',
+        marginVertical: 5,
+    },
+    codigoTexto: {
+        textAlign: 'center',
+        fontSize: 16,
+        marginBottom: 20,
+    },
 });
 
 export default ReciboEmbarquesScreen;

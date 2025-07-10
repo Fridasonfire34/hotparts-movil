@@ -1,10 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ImageBackground, TextInput, TouchableOpacity, FlatList, BackHandler, Alert, Modal, ActivityIndicator } from 'react-native';
-import { KeyboardAvoidingView, Platform, ScrollView, Keyboard } from 'react-native';
-import { TouchableWithoutFeedback } from 'react-native';
+import {
+    View,
+    Text,
+    StyleSheet,
+    ImageBackground,
+    TextInput,
+    TouchableOpacity,
+    FlatList,
+    BackHandler,
+    Alert,
+    Modal,
+    ActivityIndicator,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    Keyboard,
+    TouchableWithoutFeedback
+} from 'react-native';
+import { Camera } from 'react-native-camera-kit';
 import axios from 'axios';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from './App';
+import { runOnJS } from 'react-native-reanimated';
 
 type EntregaProgramacionScreenRouteProp = RouteProp<RootStackParamList, 'EntregaProgramacion'>;
 
@@ -31,13 +48,15 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
     const [searchText, setSearchText] = useState<string>('');
     const [isSearchActive, setIsSearchActive] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [isScannerVisible, setIsScannerVisible] = useState(false);
+
 
 
     useEffect(() => {
         const fetchHotParts = async () => {
             setLoading(true);
             try {
-                const response = await axios.get('http://192.168.16.146:3002/api/Programacion');
+                const response = await axios.get('http://192.168.16.192:3000/api/Programacion');
                 setHotParts(response.data);
                 setFilteredHotParts(response.data);
             } catch (error) {
@@ -62,10 +81,11 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
         fetchHotParts();
     }, []);
 
+
     const onRefresh = async () => {
         setRefreshing(true);
         try {
-            const response = await axios.get('http://192.168.16.146:3002/api/Programacion');
+            const response = await axios.get('http://192.168.16.192:3000/api/Programacion');
             setHotParts(response.data);
             setFilteredHotParts(response.data);
         } catch (error) {
@@ -73,7 +93,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
         } finally {
             setRefreshing(false);
         }
-    };    
+    };
 
     const handleSearch = (text: string) => {
         setSearchText(text);
@@ -109,7 +129,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
                 const numerosParte = selectedItems.map(item => item['Numero de Parte']);
                 console.log("Folios seleccionados:", folios);
 
-                const response = await axios.post('http://192.168.16.146:3002/api/cantidadTodo', {
+                const response = await axios.post('http://192.168.16.192:3000/api/cantidadTodo', {
                     folios: folios,
                     cantidades: cantidades,
                     ordenesCompra: ordenesCompra,
@@ -131,6 +151,11 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
         }
     };
 
+    const handleEscanearQR = () => {
+        setIsScannerVisible(true);
+    };
+
+
     const handleVerificarCodigos = async () => {
         if (!codigoEntrega) {
             Alert.alert('Error', 'El código de recibo es incorrecto');
@@ -147,21 +172,21 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
                 return;
             }
 
-            const verifyResponse = await axios.post('http://192.168.16.146:3002/api/verificarCodigos', {
+            const verifyResponse = await axios.post('http://192.168.16.192:3000/api/verificarCodigos', {
                 folios: folios,
                 codigoEntrega: codigoEntrega,
                 nomina: nomina
             });
 
             if (verifyResponse.data.success) {
-                const reciboResponse = await axios.post('http://192.168.16.146:3002/api/reciboProduccion', {
+                const reciboResponse = await axios.post('http://192.168.16.192:3000/api/reciboProduccion', {
                     folios: folios,
                     nomina: nomina,
                 });
 
                 if (reciboResponse.data.success) {
                     try {
-                        const guardarMovimientoResponse = await axios.post('http://192.168.16.146:3002/api/guardarMovimiento', {
+                        const guardarMovimientoResponse = await axios.post('http://192.168.16.192:3000/api/guardarMovimiento', {
                             folios: folios,
                             nomina: nomina,
                         });
@@ -180,11 +205,11 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
                             text: 'OK',
                             onPress: async () => {
                                 try {
-                                    const updateResponse = await axios.get('http://192.168.16.146:3002/api/Programacion');
+                                    const updateResponse = await axios.get('http://192.168.16.192:3000/api/Programacion');
                                     setHotParts(updateResponse.data);
                                     setFilteredHotParts(updateResponse.data);
 
-                                    const entregaResponse = await axios.post('http://192.168.16.146:3002/api/entregaProgramacion');
+                                    const entregaResponse = await axios.post('http://192.168.16.192:3000/api/entregaProgramacion');
                                     console.log('Respuesta de entregaProgramacion:', entregaResponse.data);
                                 } catch (error) {
                                     console.error('Error al ejecutar las APIs:', error);
@@ -203,7 +228,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
             console.error('Axios Error:', error.response ? error.response.data : error.message);
 
             try {
-                const eliminarResponse = await axios.post('http://192.168.16.146:3002/api/eliminarCodigos', {});
+                const eliminarResponse = await axios.post('http://192.168.16.192:3000/api/eliminarCodigos', {});
 
                 if (eliminarResponse.data.success) {
                     console.log('Códigos eliminados correctamente');
@@ -222,19 +247,18 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
 
     const renderItem = ({ item }: { item: HotPart }) => {
         const isSelected = selectedItems.some((selectedItem) => selectedItem.Folio === item.Folio);
-    
+
         return (
             <TouchableOpacity
                 style={[styles.tableRow, isSelected && styles.selectedRow]}
                 onPress={() => toggleSelectItem(item)}
             >
-                <Text style={styles.headerSecuencia}>{item.Secuencia}</Text>
-                <Text style={styles.headerParte}>{item['Numero de Parte']}</Text>
-                <Text style={styles.headerQty}>{item.Cantidad}</Text>
+                <Text>{String(item['Secuencia'])}</Text>
+                <Text>{String(item['Numero de Parte'])}</Text>
+                <Text>{String(item['Cantidad'])}</Text>
             </TouchableOpacity>
         );
     };
-    
 
     return (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -246,7 +270,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
                     <View style={styles.topContainer}>
                         <Text style={styles.userText}>{nomina} {nombre} {area}</Text>
                     </View>
-    
+
                     <View style={styles.inputContainer}>
                         <TextInput
                             style={styles.input}
@@ -255,37 +279,37 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
                             placeholder="Buscar Hot Part"
                         />
                     </View>
-    
+
                     <View style={styles.tableContainer}>
-    {loading ? (
-        <ActivityIndicator size="large" color="#0e5699" />
-    ) : (
-        <FlatList
-            data={filteredHotParts}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.Folio.toString()}
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            ListEmptyComponent={
-                <Text style={styles.NoResult}>No hay resultados</Text>
-            }
-            ListHeaderComponent={
-                filteredHotParts.length > 0 ? (
-                    <View style={[styles.tableRow, styles.headerRow]}>
-                        <Text style={styles.headerSecuencia}>Secuencia</Text>
-                        <Text style={styles.headerParte}>N. Parte</Text>
-                        <Text style={styles.headerQty}>Qty</Text>
+                        {loading ? (
+                            <ActivityIndicator size="large" color="#0e5699" />
+                        ) : (
+                            <FlatList
+                                data={filteredHotParts}
+                                renderItem={renderItem}
+                                keyExtractor={(item) => item.Folio.toString()}
+                                refreshing={refreshing}
+                                onRefresh={onRefresh}
+                                ListEmptyComponent={
+                                    <Text style={styles.NoResult}>No hay resultados</Text>
+                                }
+                                ListHeaderComponent={
+                                    filteredHotParts.length > 0 ? (
+                                        <View style={[styles.tableRow, styles.headerRow]}>
+                                            <Text style={styles.headerSecuencia}>Secuencia</Text>
+                                            <Text style={styles.headerParte}>N. Parte</Text>
+                                            <Text style={styles.headerQty}>Qty</Text>
+                                        </View>
+                                    ) : null
+                                }
+                                contentContainerStyle={{
+                                    flexGrow: 1,
+                                    justifyContent: filteredHotParts.length === 0 ? 'center' : 'flex-start',
+                                }}
+                            />
+                        )}
                     </View>
-                ) : null
-            }
-            contentContainerStyle={{
-                flexGrow: 1,
-                justifyContent: filteredHotParts.length === 0 ? 'center' : 'flex-start',
-            }}
-        />
-    )}
-</View>
-    
+
                     {selectedItems.length > 0 && (
                         <View style={styles.fixedButtonContainer}>
                             <TouchableOpacity
@@ -297,65 +321,98 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
                             </TouchableOpacity>
                         </View>
                     )}
-    
+
                     {/* MODAL */}
                     <Modal
                         transparent={true}
                         animationType="slide"
                         visible={isModalVisible}
-                        onRequestClose={() => setIsModalVisible(false)}
+                        onRequestClose={() => setIsModalVisible(true)}
                     >
                         <View style={styles.modalBackground}>
                             <View style={styles.modalContainer}>
                                 <Text style={styles.modalTitle}>Ingresa el código de Recibo</Text>
+
                                 <TextInput
-                                    style={styles.input}
+                                    style={styles.inputCodigo}
                                     placeholder="Ingresa el código"
                                     value={codigoEntrega}
                                     onChangeText={setCodigoEntrega}
                                     keyboardType="default"
                                 />
+
                                 <View style={styles.buttonsContainer}>
-                                    <TouchableOpacity style={styles.confirmButton} onPress={handleVerificarCodigos}>
+                                    <TouchableOpacity style={[styles.modalButtonScan, { backgroundColor: '#4CAF50' }]} onPress={handleEscanearQR}>
+                                        <Text style={styles.buttonText}>Escanear QR</Text>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#0e5699' }]} onPress={handleVerificarCodigos}>
                                         <Text style={styles.buttonText}>Confirmar</Text>
                                     </TouchableOpacity>
-                                    <TouchableOpacity style={styles.cancelButton} onPress={() => setIsModalVisible(false)}>
+
+                                    <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#c4c4c4' }]} onPress={() => setIsModalVisible(false)}>
                                         <Text style={styles.buttonText}>Cancelar</Text>
                                     </TouchableOpacity>
                                 </View>
                             </View>
                         </View>
                     </Modal>
+                    {isScannerVisible && (
+                        <Modal
+                            animationType="slide"
+                            transparent={false}
+                            visible={isScannerVisible}
+                            onRequestClose={() => setIsScannerVisible(false)}
+                        >
+                            <Camera
+                                style={{ flex: 1 }}
+                                cameraType="back"
+                                scanBarcode={true}
+                                onReadCode={(event) => {
+                                    setCodigoEntrega(event.nativeEvent.codeStringValue);
+                                    setIsScannerVisible(false);
+                                }}
+                            />
+
+                        </Modal>
+                    )}
                 </ImageBackground>
             </KeyboardAvoidingView>
         </TouchableWithoutFeedback>
-    );    
-              
-};
+    );
 
+};
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
         justifyContent: 'flex-start',
         alignItems: 'center',
-      //  paddingVertical: 10,
+        //  paddingVertical: 10,
     },
     headerRow: {
-     //   borderBottomWidth: 1,
+        //   borderBottomWidth: 1,
         borderColor: '#363636',
         flexDirection: 'row',
-       // paddingVertical: 10,
-       // paddingHorizontal: 5,
+        // paddingVertical: 10,
+        // paddingHorizontal: 5,
     },
     cellText: {
         fontSize: 13,
         color: '#000',
     },
+    Screen: {
+        fontSize: 14,
+        color: 'black',
+        marginBottom: 5,
+        marginTop: 30,
+        textAlign: 'center',
+        backgroundColor: '#3498db'
+    },
     headerSecuencia: {
         flex: 1.2,
         textAlign: 'left',
-        marginLeft: 15,
+        marginLeft: 10,
         fontWeight: 'bold',
         color: '#000',
     },
@@ -377,7 +434,7 @@ const styles = StyleSheet.create({
     },
     topContainer: {
         position: 'absolute',
-       // top: 20,
+        // top: 20,
         left: 20,
         right: 20,
         alignItems: 'center',
@@ -400,31 +457,25 @@ const styles = StyleSheet.create({
     },
     input: {
         width: 250,
-        height: 45,
+        height: 40,
         borderColor: '#c4c4c4',
         backgroundColor: '#cfcfcf',
         borderWidth: 1,
         paddingLeft: 10,
         marginRight: 10,
         fontSize: 16,
-        color: 'black'
-    },
-    buttonText: {
-        color: 'white',
-        fontSize: 16,
-        textAlign: 'center',
     },
     tableContainer: {
-        marginTop: 20,
-        width: '90%',
+        marginTop: 2,
+        width: '95%',
     },
-        fixedButtonContainer: {
+    fixedButtonContainer: {
         position: 'absolute',
         bottom: 20,
         left: 0,
         right: 0,
         alignItems: 'center',
-      },
+    },
     disabledButton: {
         backgroundColor: '#cccccc',
     },
@@ -438,12 +489,12 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
     },
     tableCell: {
-        width: '45%',
-        fontSize: 16,
-        color: 'black',
+        width: '50%',
+        fontSize: 8,
+        // color: 'black',
         textAlign: 'center',
-        padding: 3,
-        fontWeight: 'bold',
+        // padding: 3,
+        //   fontWeight: 'bold',
     },
     NoResult: {
         fontSize: 25,
@@ -457,37 +508,13 @@ const styles = StyleSheet.create({
         borderRadius: 5,
         marginTop: 20,
         width: '90%',
-      //  position: 'absolute',
-      //  bottom: 20,
+        //  position: 'absolute',
+        //  bottom: 20,
     },
-      scrollContent: {
+    scrollContent: {
         paddingHorizontal: 20,
         paddingTop: 40,
         paddingBottom: 100, // espacio para que el botón no tape la lista
-      },
-    modalBackground: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    },
-    modalContainer: {
-        width: '80%',
-        padding: 20,
-        backgroundColor: 'white',
-        borderRadius: 10,
-        alignItems: 'center',
-    },
-    buttonsContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        width: '100%',
-        marginTop: 20,
-    },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: 20,
     },
     codigoText: {
         fontSize: 16,
@@ -505,6 +532,68 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         borderRadius: 5,
         width: '48%',
-    }
+    },
+    modalBackground: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContainer: {
+        width: '90%',
+        backgroundColor: 'white',
+        padding: 20,
+        borderRadius: 10,
+        elevation: 5,
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 10,
+        textAlign: 'center',
+    },
+    buttonsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 1,
+    },
+    modalButton: {
+        flex: 1,
+        marginHorizontal: 5,
+        paddingVertical: 12,
+        borderRadius: 5,
+        alignItems: 'center',
+    },
+    button: {
+        flex: 1,
+        marginHorizontal: 5,
+        backgroundColor: '#007AFF',
+        paddingVertical: 10,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    buttonText: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 16,
+        textAlign: 'center',
+    },
+    inputCodigo: {
+        borderWidth: 1,
+        borderColor: '#a9aaac',
+        borderRadius: 5,
+        padding: 10,
+        marginBottom: 20,
+        backgroundColor: '#cfcfcf',
+    },
+    modalButtonScan: {
+        flex: 1.2,
+        marginHorizontal: 4,
+        paddingVertical: 12,
+        borderRadius: 5,
+        alignItems: 'center',
+        width: '90%',
+    },
 });
 export default EntregaProgramacionScreen;
+
