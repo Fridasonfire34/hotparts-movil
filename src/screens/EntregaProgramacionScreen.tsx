@@ -56,7 +56,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
         const fetchHotParts = async () => {
             setLoading(true);
             try {
-                const response = await axios.get('http://192.168.16.192:3000/api/Programacion');
+                const response = await axios.get('http://192.168.16.146:3002/api/Programacion');
                 setHotParts(response.data);
                 setFilteredHotParts(response.data);
             } catch (error) {
@@ -86,7 +86,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
         setLoading(true);
         setRefreshing(true);
         try {
-            const response = await axios.get('http://192.168.16.192:3000/api/Programacion');
+            const response = await axios.get('http://192.168.16.146:3002/api/Programacion');
             setHotParts(response.data);
             setFilteredHotParts(response.data);
         } catch (error) {
@@ -131,7 +131,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
                 const numerosParte = selectedItems.map(item => item['Numero de Parte']);
                 console.log("Folios seleccionados:", folios);
 
-                const response = await axios.post('http://192.168.16.192:3000/api/cantidadTodo', {
+                const response = await axios.post('http://192.168.16.146:3002/api/cantidadTodo', {
                     folios: folios,
                     cantidades: cantidades,
                     ordenesCompra: ordenesCompra,
@@ -174,21 +174,21 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
                 return;
             }
 
-            const verifyResponse = await axios.post('http://192.168.16.192:3000/api/verificarCodigos', {
+            const verifyResponse = await axios.post('http://192.168.16.146:3002/api/verificarCodigos', {
                 folios: folios,
                 codigoEntrega: codigoEntrega,
                 nomina: nomina
             });
 
             if (verifyResponse.data.success) {
-                const reciboResponse = await axios.post('http://192.168.16.192:3000/api/reciboProduccion', {
+                const reciboResponse = await axios.post('http://192.168.16.146:3002/api/reciboProduccion', {
                     folios: folios,
                     nomina: nomina,
                 });
 
                 if (reciboResponse.data.success) {
                     try {
-                        const guardarMovimientoResponse = await axios.post('http://192.168.16.192:3000/api/guardarMovimiento', {
+                        const guardarMovimientoResponse = await axios.post('http://192.168.16.146:3002/api/guardarMovimiento', {
                             folios: folios,
                             nomina: nomina,
                         });
@@ -207,11 +207,11 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
                             text: 'OK',
                             onPress: async () => {
                                 try {
-                                    const updateResponse = await axios.get('http://192.168.16.192:3000/api/Programacion');
+                                    const updateResponse = await axios.get('http://192.168.16.146:3002/api/Programacion');
                                     setHotParts(updateResponse.data);
                                     setFilteredHotParts(updateResponse.data);
 
-                                    const entregaResponse = await axios.post('http://192.168.16.192:3000/api/entregaProgramacion');
+                                    const entregaResponse = await axios.post('http://192.168.16.146:3002/api/entregaProgramacion');
                                     console.log('Respuesta de entregaProgramacion:', entregaResponse.data);
                                 } catch (error) {
                                     console.error('Error al ejecutar las APIs:', error);
@@ -230,7 +230,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
             console.error('Axios Error:', error.response ? error.response.data : error.message);
 
             try {
-                const eliminarResponse = await axios.post('http://192.168.16.192:3000/api/eliminarCodigos', {});
+                const eliminarResponse = await axios.post('http://192.168.16.146:3002/api/eliminarCodigos', {});
 
                 if (eliminarResponse.data.success) {
                     console.log('Códigos eliminados correctamente');
@@ -470,6 +470,7 @@ const styles = StyleSheet.create({
     tableContainer: {
         marginTop: 2,
         width: '95%',
+        marginBottom: 150,
     },
     fixedButtonContainer: {
         position: 'absolute',

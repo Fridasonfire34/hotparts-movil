@@ -58,7 +58,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
         const fetchHotParts = async () => {
             setLoading(true);
             try {
-                const response = await axios.get('http://192.168.16.192:3000/api/Produccion');
+                const response = await axios.get('http://192.168.16.146:3002/api/Produccion');
                 setHotParts(response.data);
                 setFilteredHotParts(response.data);
             } catch (error) {
@@ -87,7 +87,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
         setLoading(true);
         setRefreshing(true);
         try {
-            const response = await axios.get('http://192.168.16.192:3000/api/Produccion');
+            const response = await axios.get('http://192.168.16.146:3002/api/Produccion');
             setHotParts(response.data);
             setFilteredHotParts(response.data);
         } catch (error) {
@@ -139,7 +139,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
             const numerosParte = rowsWithQuantityOne.map((item) => item['Numero de Parte']);
 
             try {
-                const response = await axios.post('http://192.168.16.192:3000/api/cantidadEntrega', {
+                const response = await axios.post('http://192.168.16.146:3002/api/cantidadEntrega', {
                     folios,
                     cantidades,
                     ordenesCompra,
@@ -178,7 +178,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
         }
 
         try {
-            const response = await axios.post('http://192.168.16.192:3000/api/cantidadEntrega', {
+            const response = await axios.post('http://192.168.16.146:3002/api/cantidadEntrega', {
                 folios: [item.Folio],
                 cantidades: [quantityToDeliver],
                 nomina: nomina,
@@ -220,20 +220,20 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
                 return;
             }
 
-            const verifyResponse = await axios.post('http://192.168.16.192:3000/api/verificarCodigos', {
+            const verifyResponse = await axios.post('http://192.168.16.146:3002/api/verificarCodigos', {
                 folios: foliosSeleccionados,
                 codigoEntrega: codigoEntrega,
                 nomina: nomina
             });
 
             if (verifyResponse.data.success) {
-                const reciboResponse = await axios.post('http://192.168.16.192:3000/api/reciboCalidad', {
+                const reciboResponse = await axios.post('http://192.168.16.146:3002/api/reciboCalidad', {
                     folios: foliosSeleccionados,
                     nomina: nomina,
                 });
 
                 if (reciboResponse.data.success) {
-                    const guardarMovimientoResponse = await axios.post('http://192.168.16.192:3000/api/guardarMovimiento', {
+                    const guardarMovimientoResponse = await axios.post('http://192.168.16.146:3002/api/guardarMovimiento', {
                         folios: foliosSeleccionados,
                         nomina: nomina,
                     });
@@ -249,11 +249,11 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
                             text: 'OK',
                             onPress: async () => {
                                 try {
-                                    const updateResponse = await axios.get('http://192.168.16.192:3000/api/Produccion');
+                                    const updateResponse = await axios.get('http://192.168.16.146:3002/api/Produccion');
                                     setHotParts(updateResponse.data);
                                     setFilteredHotParts(updateResponse.data);
 
-                                    const entregaResponse = await axios.post('http://192.168.16.192:3000/api/entregaProduccion');
+                                    const entregaResponse = await axios.post('http://192.168.16.146:3002/api/entregaProduccion');
                                     console.log('Respuesta de entregaProduccion:', entregaResponse.data);
                                 } catch (error) {
                                     console.error('Error al ejecutar las APIs:', error);
@@ -272,7 +272,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({ route }) => {
             console.error('Axios Error:', error.response ? error.response.data : error.message);
 
             try {
-                const eliminarResponse = await axios.post('http://192.168.16.192:3000/api/eliminarCodigos', {});
+                const eliminarResponse = await axios.post('http://192.168.16.146:3002/api/eliminarCodigos', {});
 
                 if (eliminarResponse.data.success) {
                     console.log('Códigos eliminados correctamente');
@@ -512,12 +512,6 @@ const styles = StyleSheet.create({
         // paddingVertical: 10,
         // paddingHorizontal: 5,
     },
-    inputContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 35,
-        marginBottom: 1
-    },
     cellText: {
         fontSize: 13,
         color: '#000',
@@ -533,7 +527,7 @@ const styles = StyleSheet.create({
     headerSecuencia: {
         flex: 1.2,
         textAlign: 'left',
-        marginLeft: 10,
+        marginLeft: 15,
         fontWeight: 'bold',
         color: '#000',
     },
@@ -560,6 +554,10 @@ const styles = StyleSheet.create({
         right: 20,
         alignItems: 'center',
     },
+    boldText: {
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
     text: {
         fontSize: 20,
         fontWeight: 'bold',
@@ -567,8 +565,14 @@ const styles = StyleSheet.create({
     userText: {
         fontSize: 12,
         color: 'black',
-        marginBottom: 10,
+        marginBottom: 5,
         marginTop: 10,
+    },
+    inputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 35,
+        marginBottom: 1
     },
     input: {
         width: 250,
@@ -580,19 +584,21 @@ const styles = StyleSheet.create({
         marginRight: 10,
         fontSize: 16,
     },
+    searchButton: {
+        backgroundColor: '#0e5699',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 5,
+    },
+    buttonText: {
+        color: 'white',
+        fontSize: 16,
+        textAlign: 'center',
+    },
     tableContainer: {
         marginTop: 2,
         width: '95%',
-    },
-    fixedButtonContainer: {
-        position: 'absolute',
-        bottom: 20,
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-    },
-    disabledButton: {
-        backgroundColor: '#cccccc',
+        marginBottom: 150,
     },
     tableRow: {
         flexDirection: 'row',
@@ -604,12 +610,12 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
     },
     tableCell: {
-        width: '50%',
-        fontSize: 8,
-        // color: 'black',
+        width: '45%',
+        fontSize: 16,
+        color: 'black',
         textAlign: 'center',
-        // padding: 3,
-        //   fontWeight: 'bold',
+        padding: 3,
+        fontWeight: 'bold',
     },
     NoResult: {
         fontSize: 25,
@@ -626,10 +632,44 @@ const styles = StyleSheet.create({
         //  position: 'absolute',
         //  bottom: 20,
     },
+    disabledButton: {
+        backgroundColor: '#cccccc',
+    },
+    fixedButtonContainer: {
+        position: 'absolute',
+        bottom: 20,
+        left: 0,
+        right: 0,
+        alignItems: 'center',
+    },
     scrollContent: {
         paddingHorizontal: 20,
         paddingTop: 40,
         paddingBottom: 100, // espacio para que el botón no tape la lista
+    },
+    modalBackground: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    modalContainer: {
+        width: '80%',
+        padding: 20,
+        backgroundColor: 'white',
+        borderRadius: 10,
+        alignItems: 'center',
+    },
+    buttonsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        width: '100%',
+        marginTop: 20,
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 20,
     },
     codigoText: {
         fontSize: 16,
@@ -648,29 +688,22 @@ const styles = StyleSheet.create({
         borderRadius: 5,
         width: '48%',
     },
-    modalBackground: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'center',
+    qrContainer: {
         alignItems: 'center',
+        marginVertical: 5,
     },
-    modalContainer: {
-        width: '90%',
-        backgroundColor: 'white',
-        padding: 20,
-        borderRadius: 10,
-        elevation: 5,
-    },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: 10,
+    codigoTexto: {
         textAlign: 'center',
+        fontSize: 16,
+        marginBottom: 20,
     },
-    buttonsContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: 2,
+    inputCodigo: {
+        borderWidth: 1,
+        borderColor: '#a9aaac',
+        borderRadius: 5,
+        padding: 10,
+        marginBottom: 20,
+        backgroundColor: '#cfcfcf',
     },
     modalButton: {
         flex: 1,
@@ -686,28 +719,6 @@ const styles = StyleSheet.create({
         borderRadius: 5,
         alignItems: 'center',
         width: '90%',
-    },
-    button: {
-        flex: 1,
-        marginHorizontal: 5,
-        backgroundColor: '#007AFF',
-        paddingVertical: 10,
-        borderRadius: 8,
-        alignItems: 'center',
-    },
-    buttonText: {
-        color: 'white',
-        fontWeight: 'bold',
-        fontSize: 16,
-        textAlign: 'center',
-    },
-    inputCodigo: {
-        borderWidth: 1,
-        borderColor: '#a9aaac',
-        borderRadius: 5,
-        padding: 10,
-        marginBottom: 20,
-        backgroundColor: '#cfcfcf',
     },
 });
 export default EntregaProduccionScreen;

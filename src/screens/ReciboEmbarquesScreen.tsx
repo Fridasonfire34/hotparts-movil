@@ -39,7 +39,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
         const fetchHotParts = async () => {
             setLoading(true);
             try {
-                const response = await axios.get('http://192.168.16.192:3000/api/calidad');
+                const response = await axios.get('http://192.168.16.146:3002/api/calidad');
                 setHotParts(response.data);
                 setFilteredHotParts(response.data);
             } catch (error) {
@@ -83,7 +83,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
         setLoading(true);
         setRefreshing(true);
         try {
-            const response = await axios.get('http://192.168.16.192:3000/api/calidad');
+            const response = await axios.get('http://192.168.16.146:3002/api/calidad');
             setHotParts(response.data);
             setFilteredHotParts(response.data);
         } catch (error) {
@@ -119,7 +119,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
             const numerosParte = rowsWithQuantityOne.map((item) => item['Numero de Parte']);
 
             try {
-                const response = await axios.post('http://192.168.16.192:3000/api/cantidadRecibo', {
+                const response = await axios.post('http://192.168.16.146:3002/api/cantidadRecibo', {
                     folios,
                     cantidades,
                     ordenesCompra,
@@ -160,7 +160,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
         }
 
         try {
-            const response = await axios.post('http://192.168.16.192:3000/api/cantidadRecibo', {
+            const response = await axios.post('http://192.168.16.146:3002/api/cantidadRecibo', {
                 folios: [item.Folio],
                 cantidades: [quantityToDeliver],
                 nomina: nomina,
@@ -205,7 +205,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
 
         try {
             setLoading(true);
-            const response = await axios.post('http://192.168.16.192:3000/api/generarCodigo', {
+            const response = await axios.post('http://192.168.16.146:3002/api/generarCodigo', {
                 folios: foliosSeleccionados,
                 nomina
             });
@@ -246,7 +246,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
             setLoading(true);
 
             try {
-                const response = await axios.get('http://192.168.16.192:3000/api/calidad');
+                const response = await axios.get('http://192.168.16.146:3002/api/calidad');
                 setHotParts(response.data);
                 setFilteredHotParts(response.data);
             } catch (error) {
@@ -524,8 +524,9 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     tableContainer: {
-        marginTop: 20,
-        width: '90%',
+        marginTop: 2,
+        width: '95%',
+        marginBottom: 150,
     },
     tableRow: {
         flexDirection: 'row',
@@ -564,7 +565,7 @@ const styles = StyleSheet.create({
     },
     fixedButtonContainer: {
         position: 'absolute',
-        bottom: 20,
+        bottom: 50,
         left: 0,
         right: 0,
         alignItems: 'center',
