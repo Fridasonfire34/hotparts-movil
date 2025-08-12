@@ -34,7 +34,7 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
         const fetchHotParts = async () => {
             setLoading(true);
             try {
-                const response = await axios.get('http://192.168.16.146:3002/api/Programacion');
+                const response = await axios.get('http://192.168.16.146:3002/api/hotparts/Programacion');
                 setHotParts(response.data);
                 setFilteredHotParts(response.data);
             } catch (error) {
@@ -78,7 +78,7 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
         setLoading(true);
         setRefreshing(true);
         try {
-            const response = await axios.get('http://192.168.16.146:3002/api/Programacion');
+            const response = await axios.get('http://192.168.16.146:3002/api/hotparts/Programacion');
             setHotParts(response.data);
             setFilteredHotParts(response.data);
         } catch (error) {
@@ -107,7 +107,7 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
                 const numerosParte = selectedItems.map(item => item['Numero de Parte']);
                 console.log("Folios seleccionados:", folios);
 
-                const response = await axios.post('http://192.168.16.146:3002/api/cantidadRecibo', {
+                const response = await axios.post('http://192.168.16.146:3002/api/hotparts/cantidadRecibo', {
                     folios: folios,
                     cantidades: cantidades,
                     ordenesCompra: ordenesCompra,
@@ -142,7 +142,7 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
 
         try {
             setLoading(true);
-            const response = await axios.post('http://192.168.16.146:3002/api/generarCodigo', { folios: foliosSeleccionados, nomina });
+            const response = await axios.post('http://192.168.16.146:3002/api/hotparts/generarCodigo', { folios: foliosSeleccionados, nomina });
             const { codigoEntrega } = response.data;
             setCodigoEntrega(typeof codigoEntrega === 'string' ? codigoEntrega : codigoEntrega[0]);
             setLoading(false);
@@ -168,7 +168,7 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
             setLoading(true);
 
             try {
-                const response = await axios.get('http://192.168.16.146:3002/api/Programacion');
+                const response = await axios.get('http://192.168.16.146:3002/api/hotparts/Programacion');
                 setHotParts(response.data);
                 setFilteredHotParts(response.data);
             } catch (error) {
