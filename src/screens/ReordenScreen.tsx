@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ImageBackground, TextInput, TouchableOpacity, F
 import axios from 'axios';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from './App';
+import { useNavigation } from '@react-navigation/native';
 
 type ReordenScreenRouteProp = RouteProp<RootStackParamList, 'ReordenScreen'>;
 
@@ -19,6 +20,7 @@ interface HotPart {
 
 const ReordenScreen: React.FC<Props> = ({ route }) => {
     const { nomina, nombre, area } = route?.params || {};
+    const navigation = useNavigation();
     const [hotParts, setHotParts] = useState<HotPart[]>([]);
     const [filteredHotParts, setFilteredHotParts] = useState<HotPart[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
@@ -274,11 +276,13 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                                         folios: folios,
                                         nomina: nomina
                                     });
+                                    
                                     console.log('Movimiento guardado:', guardarMovimientoResponse.data);
 
                                     await axios.post('http://192.168.16.146:3002/api/hotparts/reordenNotif', {
                                         secuencias: secuencias,
                                     });
+                                    navigation.navigate('Menu');
 
                                 } catch (error) {
                                     console.error('Error al guardar movimiento de reorden o enviar notificación:', error);
@@ -314,21 +318,24 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
         setIsModalVisible(false);
     };
 
-
     const renderItem = ({ item }: { item: HotPart }) => {
         const isSelected = selectedItems.some((selectedItem) => selectedItem.Folio === item.Folio);
-
+    
         return (
             <TouchableOpacity
+                style={[styles.card, isSelected && styles.selectedCard]}
                 onPress={() => toggleSelectItem(item)}
-                style={[
-                    styles.tableRow,
-                    isSelected && styles.selectedRow
-                ]}
             >
-                <Text style={styles.headerSecuencia}>{item.Secuencia}</Text>
-                <Text style={styles.headerParte}>{item['Numero de Parte']}</Text>
-                <Text style={styles.headerQty}>{item['Cantidad Faltante']}</Text>
+                {/* Primera fila */}
+                <View style={styles.cardRow}>
+                    <Text style={styles.cardPart}>{item['Numero de Parte']}</Text>
+                    <Text style={styles.cardQty}>{item['Cantidad Faltante']}</Text>
+                </View>
+    
+                {/* Segunda fila */}
+                <View style={styles.cardRow}>
+                    <Text style={styles.cardSecuencia}>Secuencia: {item['Secuencia']}</Text>
+                </View>
             </TouchableOpacity>
         );
     };
@@ -393,16 +400,14 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                                 ListHeaderComponent={
                                     filteredHotParts.length > 0 ? (
                                         <View style={[styles.tableRow, styles.headerRow]}>
-                                            <Text style={styles.headerSecuencia}>Secuencia</Text>
-                                            <Text style={styles.headerParte}>N. Parte</Text>
-                                            <Text style={styles.headerQty}>Qty</Text>
                                         </View>
                                     ) : null
                                 }
                                 contentContainerStyle={{
                                     flexGrow: 1,
                                     justifyContent: filteredHotParts.length === 0 ? 'center' : 'flex-start',
-                                }}
+                                    paddingBottom: 50, // espacio extra para no tapar el último item con el botón
+                                  }}
                             />
                         )}
                     </View>
@@ -563,11 +568,10 @@ const styles = StyleSheet.create({
         color: '#000',
     },
     fixedButtonContainer: {
-        position: 'absolute',
-        bottom: 20,
-        left: 0,
-        right: 0,
+        flex: 1,
+        justifyContent: 'center',
         alignItems: 'center',
+        width: '100%',
     },
     headerSecuencia: {
         flex: 1.2,
@@ -726,6 +730,40 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         borderRadius: 5,
         width: '48%',
-    }
+    },
+    card: {
+        backgroundColor: '#fff',
+        borderRadius: 8,
+        padding: 12,
+        marginVertical: 8,   // separación entre elementos
+        marginHorizontal: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
+        elevation: 2, // sombra Android
+    },
+    selectedCard: {
+        backgroundColor: '#cce7ff',
+    },
+    cardRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 4,
+    },
+    cardPart: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#000',
+    },
+    cardQty: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#0e5699',
+    },
+    cardSecuencia: {
+        fontSize: 12,
+        color: '#555',
+    },
 });
 export default ReordenScreen;

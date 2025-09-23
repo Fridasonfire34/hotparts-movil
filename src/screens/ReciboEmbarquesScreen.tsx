@@ -230,7 +230,6 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
         }
     };
 
-
     const handleQuantityChange = (text: string) => {
         const item = selectedItems[currentItemIndex];
         const newQuantity = text === '' ? undefined : Number(text);
@@ -244,48 +243,46 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
         try {
             setIsModalVisible(false);
             setLoading(true);
+            const response = await axios.get('http://192.168.16.146:3002/api/hotparts/calidad');
+            setHotParts(response.data);
+            setFilteredHotParts(response.data);
+        } catch (error) {
+            let errorMessage = '';
 
-            try {
-                const response = await axios.get('http://192.168.16.146:3002/api/hotparts/calidad');
-                setHotParts(response.data);
-                setFilteredHotParts(response.data);
-            } catch (error) {
-                let errorMessage = '';
-
-                if (error.response) {
-                    errorMessage = `Error ${error.response.status}: ${error.response.data || 'No hay detalles disponibles'}`;
-                    console.error('Error al obtener los HotParts:', error.response.status, error.response.data);
-                } else if (error.request) {
-                    errorMessage = 'No se recibió respuesta del servidor.';
-                    console.error('No se recibió respuesta:', error.request);
-                } else {
-                    errorMessage = `Error en la solicitud: ${error.message}`;
-                    console.error('Error en la configuración de la solicitud:', error.message);
-                }
-
-                Alert.alert('Error al obtener los HotParts', errorMessage);
-            } finally {
-                setLoading(false);
+            if (error.response) {
+                errorMessage = `Error ${error.response.status}: ${error.response.data || 'No hay detalles disponibles'}`;
+                console.error('Error al obtener los HotParts:', error.response.status, error.response.data);
+            } else if (error.request) {
+                errorMessage = 'No se recibió respuesta del servidor.';
+                console.error('No se recibió respuesta:', error.request);
+            } else {
+                errorMessage = `Error en la solicitud: ${error.message}`;
+                console.error('Error en la configuración de la solicitud:', error.message);
             }
-
-        } catch (outerError) {
-            console.error('Error inesperado en handleConfirmar:', outerError);
-            Alert.alert('Error inesperado', 'Ocurrió un error inesperado. Inténtalo de nuevo.');
+            Alert.alert('Error al obtener los HotParts', errorMessage);
+        } finally {
             setLoading(false);
         }
     };
 
     const renderItem = ({ item }: { item: HotPart }) => {
         const isSelected = selectedItems.some((selectedItem) => selectedItem.Folio === item.Folio);
-
+    
         return (
             <TouchableOpacity
-                style={[styles.tableRow, isSelected && styles.selectedRow]}
+                style={[styles.card, isSelected && styles.selectedCard]}
                 onPress={() => toggleSelectItem(item)}
             >
-                <Text>{String(item['Secuencia'])}</Text>
-                <Text>{String(item['Numero de Parte'])}</Text>
-                <Text>{String(item['Cantidad Faltante'])}</Text>
+                {/* Primera fila */}
+                <View style={styles.cardRow}>
+                    <Text style={styles.cardPart}>{item['Numero de Parte']}</Text>
+                    <Text style={styles.cardQty}>{item['Cantidad Faltante']}</Text>
+                </View>
+    
+                {/* Segunda fila */}
+                <View style={styles.cardRow}>
+                    <Text style={styles.cardSecuencia}>Secuencia: {item['Secuencia']}</Text>
+                </View>
             </TouchableOpacity>
         );
     };
@@ -326,16 +323,14 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
                                 ListHeaderComponent={
                                     filteredHotParts.length > 0 ? (
                                         <View style={[styles.tableRow, styles.headerRow]}>
-                                            <Text style={styles.headerSecuencia}>Secuencia</Text>
-                                            <Text style={styles.headerParte}>N. Parte</Text>
-                                            <Text style={styles.headerQty}>Qty</Text>
                                         </View>
                                     ) : null
                                 }
                                 contentContainerStyle={{
                                     flexGrow: 1,
                                     justifyContent: filteredHotParts.length === 0 ? 'center' : 'flex-start',
-                                }}
+                                    paddingBottom: 50, // espacio extra para no tapar el último item con el botón
+                                  }}
                             />
                         )}
                     </View>
@@ -565,7 +560,7 @@ const styles = StyleSheet.create({
     },
     fixedButtonContainer: {
         position: 'absolute',
-        bottom: 50,
+        bottom: 60,      // distancia desde abajo (ajústalo según tu tab bar)
         left: 0,
         right: 0,
         alignItems: 'center',
@@ -624,6 +619,40 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         fontSize: 16,
         marginBottom: 20,
+    },
+    card: {
+        backgroundColor: '#fff',
+        borderRadius: 8,
+        padding: 12,
+        marginVertical: 8,   // separación entre elementos
+        marginHorizontal: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
+        elevation: 2, // sombra Android
+    },
+    selectedCard: {
+        backgroundColor: '#cce7ff',
+    },
+    cardRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 4,
+    },
+    cardPart: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#000',
+    },
+    cardQty: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#0e5699',
+    },
+    cardSecuencia: {
+        fontSize: 12,
+        color: '#555',
     },
 });
 
