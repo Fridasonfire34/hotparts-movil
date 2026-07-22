@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ImageBackground, TextInput, TouchableOpacity, FlatList, BackHandler, Alert, Modal, Keyboard, Platform, KeyboardAvoidingView, TouchableWithoutFeedback, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ImageBackground, TextInput, TouchableOpacity, SectionList, BackHandler, Alert, Modal, Keyboard, Platform, KeyboardAvoidingView, TouchableWithoutFeedback, ActivityIndicator } from 'react-native';
 import axios from 'axios';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from './App';
 import QRCode from 'react-native-qrcode-svg';
+import { Camera } from 'react-native-camera-kit';
 
 
 type ReciboCalidadScreenRouteProp = RouteProp<RootStackParamList, 'ReciboCalidad'>;
@@ -20,7 +21,7 @@ interface HotPart {
 }
 
 const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
-    const { nomina, nombre, area } = route?.params || {};
+    const { nomina, nombre, area, autoFetch } = route?.params || {};
     const [hotParts, setHotParts] = useState<HotPart[]>([]);
     const [filteredHotParts, setFilteredHotParts] = useState<HotPart[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
@@ -34,35 +35,63 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
     const [foliosCantidadUno, setFoliosCantidadUno] = useState<string[]>([]);
     const [isSearchActive, setIsSearchActive] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [isScannerVisible, setIsScannerVisible] = useState(false);
+    const [isScannedList, setIsScannedList] = useState(false);
+    const [isChooserVisible, setIsChooserVisible] = useState(!autoFetch);
+
+    const mapListadoItem = (row: any): HotPart => ({
+        Folio: row.FOLIO ?? row.Folio,
+        ['Secuencia']: row['Secuencia'],
+        ['Numero de Parte']: row['Numero de Parte'],
+        ['Cantidad Faltante por Entregar']: row['Cantidad'],
+    });
+
+    const fetchListadoEntregaProduccion = async () => {
+        setLoading(true);
+        try {
+            const response = await axios.post('http://192.168.16.224:3002/api/hotparts/listadoEntregaProduccion', { nomina });
+            const data = (response.data.data ?? []).map(mapListadoItem);
+            setHotParts(data);
+            setFilteredHotParts(data);
+            setSelectedItems(data);
+        } catch (error) {
+            let errorMessage = '';
+
+            if (error.response) {
+                errorMessage = `Error ${error.response.status}: ${error.response.data || 'No hay detalles disponibles'}`;
+                console.error('Error al obtener los HotParts:', error.response.status, error.response.data);
+            } else if (error.request) {
+                errorMessage = 'No se recibió respuesta del servidor.';
+                console.error('No se recibió respuesta:', error.request);
+            } else {
+                errorMessage = `Error en la solicitud: ${error.message}`;
+                console.error('Error en la configuración de la solicitud:', error.message);
+            }
+            Alert.alert('Error al obtener los HotParts', errorMessage);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchHotParts = async () => {
-            setLoading(true);
-            try {
-                const response = await axios.get('http://192.168.16.146:3002/api/hotparts/produccion');
-                setHotParts(response.data);
-                setFilteredHotParts(response.data);
-            } catch (error) {
-                let errorMessage = '';
-
-                if (error.response) {
-                    errorMessage = `Error ${error.response.status}: ${error.response.data || 'No hay detalles disponibles'}`;
-                    console.error('Error al obtener los HotParts:', error.response.status, error.response.data);
-                } else if (error.request) {
-                    errorMessage = 'No se recibió respuesta del servidor.';
-                    console.error('No se recibió respuesta:', error.request);
-                } else {
-                    errorMessage = `Error en la solicitud: ${error.message}`;
-                    console.error('Error en la configuración de la solicitud:', error.message);
-                }
-                Alert.alert('Error al obtener los HotParts', errorMessage);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchHotParts();
+        // Viene del aviso "Producción desea Entregar Hot Parts" -> se salta el
+        // selector de Buscar/Escanear y se carga directo lo que Producción tiene pendiente.
+        if (autoFetch) {
+            setIsScannedList(false);
+            fetchListadoEntregaProduccion();
+        }
     }, []);
+
+    const handleElegirBuscar = () => {
+        setIsChooserVisible(false);
+        setIsScannedList(false);
+        fetchListadoEntregaProduccion();
+    };
+
+    const handleElegirEscanear = () => {
+        setIsChooserVisible(false);
+        setIsScannerVisible(true);
+    };
 
     const handleSearch = (text: string) => {
         setSearchText(text);
@@ -80,27 +109,100 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
     };
 
     const onRefresh = async () => {
-        setLoading(true);
         setRefreshing(true);
-        try {
-            const response = await axios.get('http://192.168.16.146:3002/api/hotparts/produccion');
-            setHotParts(response.data);
-            setFilteredHotParts(response.data);
-        } catch (error) {
-            Alert.alert('Error', 'No se pudieron actualizar los datos.');
-        } finally {
-            setRefreshing(false);
-            setLoading(false);
-        }
+        setIsScannedList(false);
+        await fetchListadoEntregaProduccion();
+        setRefreshing(false);
     };
 
     const toggleSelectItem = (item: HotPart) => {
+        setIsScannedList(false);
         setSelectedItems((prevSelectedItems) => {
             if (prevSelectedItems.some((selectedItem) => selectedItem.Folio === item.Folio)) {
                 return prevSelectedItems.filter((selectedItem) => selectedItem.Folio !== item.Folio);
             }
             return [...prevSelectedItems, item];
         });
+    };
+
+    const handleReadCode = async (codeStringValue: string) => {
+        setIsScannerVisible(false);
+        try {
+            const parsed = JSON.parse(codeStringValue);
+            if (!parsed || !Array.isArray(parsed.items)) {
+                throw new Error('Formato inválido');
+            }
+            const items: HotPart[] = parsed.items.map((item: any) => ({
+                Folio: item.folio,
+                ['Secuencia']: item.secuencia,
+                ['Numero de Parte']: item.numeroParte,
+                ['Cantidad Faltante por Entregar']: item.cantidad,
+            }));
+
+            // Valida que el QR escaneado sea justo de Hot Parts que Producción tiene
+            // pendientes para esta pantalla, y no de otro flujo (p. ej. Programación->Producción)
+            // por haber escaneado por error el QR de otro dispositivo.
+            const response = await axios.post('http://192.168.16.224:3002/api/hotparts/listadoEntregaProduccion', { nomina });
+            const foliosValidos = new Set((response.data.data ?? []).map((row: any) => row.FOLIO ?? row.Folio));
+            const foliosInvalidos = items.filter((item) => !foliosValidos.has(item.Folio));
+
+            if (foliosInvalidos.length > 0) {
+                Alert.alert('QR no válido', 'Las piezas asociadas a este código QR para entrega NO corresponden a tu departamento.');
+                return;
+            }
+
+            setHotParts(items);
+            setFilteredHotParts(items);
+            setSelectedItems(items);
+            setIsScannedList(true);
+        } catch (error) {
+            Alert.alert('Código QR no válido', 'Este código no contiene información de Hot Parts.');
+        }
+    };
+
+    const handleConfirmarEscaneo = async () => {
+        const folios = selectedItems.map((item) => item.Folio);
+        const cantidades = selectedItems.map((item) => item['Cantidad Faltante por Entregar']);
+        const ordenesCompra = selectedItems.map((item) => item['Secuencia']);
+        const numerosParte = selectedItems.map((item) => item['Numero de Parte']);
+
+        if (folios.length === 0) {
+            Alert.alert('Error', 'No hay piezas escaneadas para recibir.');
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const response = await axios.post('http://192.168.16.224:3002/api/hotparts/cantidadRecibo', {
+                folios,
+                cantidades,
+                ordenesCompra,
+                numerosParte,
+                nomina,
+            });
+
+            if (!response.data.success) {
+                Alert.alert('Error', response.data.message);
+                return;
+            }
+
+            const codigoResponse = await axios.post('http://192.168.16.224:3002/api/hotparts/generarCodigo', {
+                folios,
+                nomina,
+            });
+
+            const { codigoEntrega: nuevoCodigo } = codigoResponse.data;
+            if (!nuevoCodigo) {
+                throw new Error('El código de entrega no fue recibido del servidor.');
+            }
+            setCodigoEntrega(typeof nuevoCodigo === 'string' ? nuevoCodigo : nuevoCodigo[0]);
+            setIsModalVisible(true);
+        } catch (error) {
+            console.error('Error al confirmar el recibo escaneado:', error);
+            Alert.alert('Error', 'Hubo un error al procesar la solicitud.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleRecibirHotPart = async () => {
@@ -119,7 +221,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
             const numerosParte = rowsWithQuantityOne.map((item) => item['Numero de Parte']);
 
             try {
-                const response = await axios.post('http://192.168.16.146:3002/api/hotparts/cantidadRecibo', {
+                const response = await axios.post('http://192.168.16.224:3002/api/hotparts/cantidadRecibo', {
                     folios,
                     cantidades,
                     ordenesCompra,
@@ -160,7 +262,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
         }
 
         try {
-            const response = await axios.post('http://192.168.16.146:3002/api/hotparts/cantidadRecibo', {
+            const response = await axios.post('http://192.168.16.224:3002/api/hotparts/cantidadRecibo', {
                 folios: [item.Folio],
                 cantidades: [quantityToDeliver],
                 nomina: nomina,
@@ -204,7 +306,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
 
         try {
             setLoading(true);
-            const response = await axios.post('http://192.168.16.146:3002/api/hotparts/generarCodigo', {
+            const response = await axios.post('http://192.168.16.224:3002/api/hotparts/generarCodigo', {
                 folios: foliosSeleccionados,
                 nomina
             });
@@ -244,31 +346,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
     const handleConfirmar = async () => {
         try {
             setIsModalVisible(false);
-            setLoading(true);
-
-            try {
-                const response = await axios.get('http://192.168.16.146:3002/api/hotparts/produccion');
-                setHotParts(response.data);
-                setFilteredHotParts(response.data);
-            } catch (error) {
-                let errorMessage = '';
-
-                if (error.response) {
-                    errorMessage = `Error ${error.response.status}: ${error.response.data || 'No hay detalles disponibles'}`;
-                    console.error('Error al obtener los HotParts:', error.response.status, error.response.data);
-                } else if (error.request) {
-                    errorMessage = 'No se recibió respuesta del servidor.';
-                    console.error('No se recibió respuesta:', error.request);
-                } else {
-                    errorMessage = `Error en la solicitud: ${error.message}`;
-                    console.error('Error en la configuración de la solicitud:', error.message);
-                }
-
-                Alert.alert('Error al obtener los HotParts', errorMessage);
-            } finally {
-                setLoading(false);
-            }
-
+            await fetchListadoEntregaProduccion();
         } catch (outerError) {
             console.error('Error inesperado en handleConfirmar:', outerError);
             Alert.alert('Error inesperado', 'Ocurrió un error inesperado. Inténtalo de nuevo.');
@@ -276,23 +354,34 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
         }
     };
     
+    const groupedHotParts = React.useMemo(() => {
+        const groups = new Map<number, HotPart[]>();
+        filteredHotParts.forEach((item) => {
+            const secuencia = item['Secuencia'];
+            if (!groups.has(secuencia)) {
+                groups.set(secuencia, []);
+            }
+            groups.get(secuencia)!.push(item);
+        });
+        return Array.from(groups.entries())
+            .sort((a, b) => a[0] - b[0])
+            .map(([secuencia, data]) => ({
+                title: secuencia,
+                data,
+            }));
+    }, [filteredHotParts]);
+
     const renderItem = ({ item }: { item: HotPart }) => {
         const isSelected = selectedItems.some((selectedItem) => selectedItem.Folio === item.Folio);
-    
+
         return (
             <TouchableOpacity
                 style={[styles.card, isSelected && styles.selectedCard]}
                 onPress={() => toggleSelectItem(item)}
             >
-                {/* Primera fila */}
                 <View style={styles.cardRow}>
                     <Text style={styles.cardPart}>{item['Numero de Parte']}</Text>
                     <Text style={styles.cardQty}>{item['Cantidad Faltante por Entregar']}</Text>
-                </View>
-    
-                {/* Segunda fila */}
-                <View style={styles.cardRow}>
-                    <Text style={styles.cardSecuencia}>Secuencia: {item['Secuencia']}</Text>
                 </View>
             </TouchableOpacity>
         );
@@ -306,7 +395,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
             >
                 <ImageBackground source={require('./assets/fondo2.jpg')} style={styles.container}>
                     <View style={styles.topContainer}>
-                        <Text style={styles.userText}>{nomina} {nombre} {area}</Text>
+                        <Text style={styles.userText}>{nomina}  |  {nombre}   |  {area}</Text>
                     </View>
 
                     <View style={styles.inputContainer}>
@@ -322,38 +411,43 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
                         {loading ? (
                             <ActivityIndicator size="large" color="#0e5699" />
                         ) : (
-                            <FlatList
-                                data={filteredHotParts}
+                            <SectionList
+                                sections={groupedHotParts}
                                 renderItem={renderItem}
+                                renderSectionHeader={({ section }) => (
+                                    <View style={styles.secuenciaHeader}>
+                                        <Text style={styles.secuenciaHeaderText}>
+                                            Secuencia {section.title}
+                                            <Text style={styles.secuenciaCountText}>
+                                                {'   '}({section.data.length} {section.data.length === 1 ? 'pieza' : 'piezas'})
+                                            </Text>
+                                        </Text>
+                                    </View>
+                                )}
                                 keyExtractor={(item) => item.Folio.toString()}
                                 refreshing={refreshing}
                                 onRefresh={onRefresh}
+                                stickySectionHeadersEnabled={true}
                                 ListEmptyComponent={
                                     <Text style={styles.NoResult}>No hay resultados</Text>
                                 }
-                                ListHeaderComponent={
-                                    filteredHotParts.length > 0 ? (
-                                        <View style={[styles.tableRow, styles.headerRow]}>
-                                        </View>
-                                    ) : null
-                                }
                                 contentContainerStyle={{
                                     flexGrow: 1,
-                                    justifyContent: filteredHotParts.length === 0 ? 'center' : 'flex-start',
+                                    justifyContent: groupedHotParts.length === 0 ? 'center' : 'flex-start',
                                     paddingBottom: 50, // espacio extra para no tapar el último item con el botón
                                   }}
                             />
                         )}
                     </View>
 
-                    {selectedItems.length > 0 && (
+                    {filteredHotParts.length > 0 && (
                         <View style={styles.fixedButtonContainer}>
                             <TouchableOpacity
                                 style={[styles.entregarButton, selectedItems.length === 0 && styles.disabledButton]}
-                                onPress={handleRecibirHotPart}
+                                onPress={isScannedList ? handleConfirmarEscaneo : handleRecibirHotPart}
                                 disabled={selectedItems.length === 0}
                             >
-                                <Text style={styles.buttonText}>Entregar Hot Part</Text>
+                                <Text style={styles.buttonText}>{isScannedList ? 'Confirmar Recibo' : 'Recibir Hot Part'}</Text>
                             </TouchableOpacity>
                         </View>
                     )}
@@ -426,6 +520,44 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
                             </View>
                         </View>
                     </Modal>
+
+                    <Modal
+                        transparent={true}
+                        animationType="fade"
+                        visible={isChooserVisible}
+                        onRequestClose={handleElegirBuscar}
+                    >
+                        <View style={styles.modalBackground}>
+                            <View style={styles.modalContainer}>
+                                <Text style={styles.modalTitle}>Recibir Hot Parts</Text>
+                                <Text style={styles.chooserSubtitle}>¿Cómo quieres identificar las piezas?</Text>
+
+                                <TouchableOpacity style={[styles.chooserButton, { backgroundColor: '#0e5699' }]} onPress={handleElegirBuscar}>
+                                    <Text style={styles.buttonText}>Buscar Hot Parts</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity style={[styles.chooserButton, { backgroundColor: '#4CAF50' }]} onPress={handleElegirEscanear}>
+                                    <Text style={styles.buttonText}>Escanear QR</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </Modal>
+
+                    {isScannerVisible && (
+                        <Modal
+                            animationType="slide"
+                            transparent={false}
+                            visible={isScannerVisible}
+                            onRequestClose={() => setIsScannerVisible(false)}
+                        >
+                            <Camera
+                                style={{ flex: 1 }}
+                                cameraType="back"
+                                scanBarcode={true}
+                                onReadCode={(event) => handleReadCode(event.nativeEvent.codeStringValue)}
+                            />
+                        </Modal>
+                    )}
                 </ImageBackground>
             </KeyboardAvoidingView>
         </TouchableWithoutFeedback>
@@ -523,6 +655,19 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         paddingHorizontal: 20,
         borderRadius: 5,
+    },
+    chooserSubtitle: {
+        fontSize: 14,
+        color: '#555',
+        textAlign: 'center',
+        marginBottom: 16,
+    },
+    chooserButton: {
+        width: '100%',
+        paddingVertical: 14,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginBottom: 12,
     },
     buttonText: {
         color: 'white',
@@ -661,9 +806,25 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#0e5699',
     },
-    cardSecuencia: {
+    secuenciaHeader: {
+        backgroundColor: '#f0f4f8',
+        borderBottomWidth: 2,
+        borderBottomColor: '#0e5699',
+        paddingVertical: 6,
+        paddingHorizontal: 10,
+        marginTop: 14,
+        marginBottom: 4,
+        marginHorizontal: 4,
+    },
+    secuenciaHeaderText: {
+        color: '#0e5699',
+        fontWeight: 'bold',
+        fontSize: 14,
+    },
+    secuenciaCountText: {
+        color: '#5c7a94',
+        fontWeight: '400',
         fontSize: 12,
-        color: '#555',
     },
 
 });

@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import messaging from '@react-native-firebase/messaging';
 import notifee from '@notifee/react-native';
-import { PermissionsAndroid, Platform, Alert, Linking } from 'react-native';
+import { PermissionsAndroid, Platform, Alert, Linking, Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
 import LoginScreen from './src/screens/LoginScreen';
@@ -15,18 +17,22 @@ import ReciboProduccionScreen from './src/screens/ReciboProduccionScreen';
 import ReciboCalidadScreen from './src/screens/ReciboCalidadScreen';
 import ReciboEmbarquesScreen from './src/screens/ReciboEmbarquesScreen';
 import ReordenScreen from './src/screens/ReordenScreen';
+import NotificacionesScreen from './src/screens/NotificacionesScreen';
 
-type RootStackParamList = {
+export type RootStackParamList = {
   Login: undefined;
   Menu: undefined;
+  Notificaciones: undefined;
   EntregaProgramacion: { nomina: string; nombre: string; area: string };
-  EntregaProduccion: { nomina: string; nombre: string; area: string };
+  EntregaProduccion: { nomina: string; nombre: string; area: string; nominaEntrega?: string };
   EntregaCalidad: { nomina: string; nombre: string; area: string };
-  ReciboProduccion: { nomina: string; nombre: string; area: string };
-  ReciboCalidad: { nomina: string; nombre: string; area: string };
-  ReciboEmbarques: { nomina: string; nombre: string; area: string };
+  ReciboProduccion: { nomina: string; nombre: string; area: string; nominaEntrega?: string; autoFetch?: boolean };
+  ReciboCalidad: { nomina: string; nombre: string; area: string; nominaEntrega?: string; autoFetch?: boolean };
+  ReciboEmbarques: { nomina: string; nombre: string; area: string; nominaEntrega?: string; autoFetch?: boolean };
   ReordenScreen: { nomina: string; nombre: string; area: string };
 };
+
+export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 const Stack = createStackNavigator<RootStackParamList>();
 const VERSION_JSON_URL = 'https://hot-parts.web.app/version.json'; // La URL de tu version.json
@@ -35,6 +41,60 @@ const App: React.FC = () => {
   const [currentVersion, setCurrentVersion] = useState<string>('1.0.0'); // Versión actual de la app (cambiar según tu versión)
   const [latestVersion, setLatestVersion] = useState<string>('');
   const [downloadUrl, setDownloadUrl] = useState<string>('');
+  const [solicitudRecibo, setSolicitudRecibo] = useState<{ origen: string; destino: string } | null>(null);
+
+  const detectarSolicitudRecibo = (data?: Record<string, string>, opts?: { onlyIfIdle?: boolean }) => {
+    if (data?.tipo !== 'solicitud_recibo') return;
+
+    if (opts?.onlyIfIdle) {
+      // Si llegó mientras el usuario ya está usando la app (primer plano), no se
+      // interrumpe con el modal si está en medio de otro flujo (selector de QR,
+      // escaneo, etc.) — se encimaba con el modal de esa pantalla. La notificación
+      // del sistema (notifee) ya se mostró de todos modos, así que no se pierde.
+      const currentRoute = navigationRef.isReady() ? navigationRef.getCurrentRoute()?.name : undefined;
+      if (currentRoute !== 'Menu' && currentRoute !== 'Login') {
+        return;
+      }
+    }
+
+    setSolicitudRecibo({ origen: data.origen, destino: data.destino });
+  };
+
+  const handleCerrarSolicitud = () => setSolicitudRecibo(null);
+
+  // A qué pantalla de recibo mandar según el destino de la solicitud.
+  const RECIBO_SCREEN_BY_DESTINO: Record<string, keyof RootStackParamList> = {
+    Produccion: 'ReciboProduccion',
+    Calidad: 'ReciboCalidad',
+    Embarques: 'ReciboEmbarques',
+  };
+
+  const handleRecibirSolicitud = async () => {
+    const destino = solicitudRecibo?.destino;
+    setSolicitudRecibo(null);
+
+    const userData = await AsyncStorage.getItem('user');
+    if (!userData) {
+      // Sin sesión: se guarda la intención y se retoma en LoginScreen tras iniciar sesión.
+      if (destino) await AsyncStorage.setItem('pendingRecibo', destino);
+      if (navigationRef.isReady()) navigationRef.navigate('Login');
+      return;
+    }
+
+    const user = JSON.parse(userData);
+    const screen = destino ? RECIBO_SCREEN_BY_DESTINO[destino] : undefined;
+
+    // Solo se redirige si el usuario logueado es justo el área a la que iba dirigida
+    // esta solicitud; para cualquier otra área, "Recibir" no hace nada.
+    if (screen && user.Area === destino && navigationRef.isReady()) {
+      navigationRef.navigate(screen as any, {
+        nomina: user.Nomina,
+        nombre: user.Nombre,
+        area: user.Area,
+        autoFetch: true,
+      });
+    }
+  };
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -87,31 +147,120 @@ const App: React.FC = () => {
             pressAction: { id: 'default' },
           },
         });
+
+        detectarSolicitudRecibo(remoteMessage.data as Record<string, string> | undefined, { onlyIfIdle: true });
       });
 
       messaging().setBackgroundMessageHandler(async remoteMessage => {
         console.log('📩 Notificación en segundo plano:', remoteMessage);
       });
+
+      // App abierta desde segundo plano al tocar la notificación.
+      messaging().onNotificationOpenedApp(remoteMessage => {
+        detectarSolicitudRecibo(remoteMessage.data as Record<string, string> | undefined);
+      });
+
+      // App abierta desde cerrada (cold start) al tocar la notificación.
+      const initialNotification = await messaging().getInitialNotification();
+      if (initialNotification) {
+        detectarSolicitudRecibo(initialNotification.data as Record<string, string> | undefined);
+      }
     };
 
     setup();
   }, []); // Empty dependency array, se ejecuta solo al montar
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator initialRouteName="Login">
-        <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Menu" component={MenuScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="EntregaProgramacion" component={EntregaProgramacionScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="EntregaProduccion" component={EntregaProduccionScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="EntregaCalidad" component={EntregaCalidadScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="ReciboProduccion" component={ReciboProduccionScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="ReciboCalidad" component={ReciboCalidadScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="ReciboEmbarques" component={ReciboEmbarquesScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="ReordenScreen" component={ReordenScreen} options={{ headerShown: false }} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <SafeAreaProvider>
+      <NavigationContainer ref={navigationRef}>
+        <Stack.Navigator initialRouteName="Login">
+          <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Menu" component={MenuScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Notificaciones" component={NotificacionesScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="EntregaProgramacion" component={EntregaProgramacionScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="EntregaProduccion" component={EntregaProduccionScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="EntregaCalidad" component={EntregaCalidadScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="ReciboProduccion" component={ReciboProduccionScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="ReciboCalidad" component={ReciboCalidadScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="ReciboEmbarques" component={ReciboEmbarquesScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="ReordenScreen" component={ReordenScreen} options={{ headerShown: false }} />
+        </Stack.Navigator>
+
+        <Modal
+          transparent
+          animationType="fade"
+          visible={!!solicitudRecibo}
+          onRequestClose={handleCerrarSolicitud}
+        >
+          <View style={modalStyles.background}>
+            <View style={modalStyles.container}>
+              <Text style={modalStyles.title}>
+                {solicitudRecibo?.origen} desea Entregar Hot Parts
+              </Text>
+              <View style={modalStyles.buttonsRow}>
+                <TouchableOpacity style={modalStyles.closeButton} onPress={handleCerrarSolicitud} activeOpacity={0.7}>
+                  <Text style={modalStyles.closeButtonText}>Cerrar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={modalStyles.receiveButton} onPress={handleRecibirSolicitud} activeOpacity={0.7}>
+                  <Text style={modalStyles.receiveButtonText}>Recibir</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 };
+
+const modalStyles = StyleSheet.create({
+  background: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  container: {
+    width: '85%',
+    backgroundColor: 'white',
+    borderRadius: 14,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: '#0d3f73',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  buttonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  closeButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    backgroundColor: '#e0e0e0',
+  },
+  closeButtonText: {
+    color: '#333',
+    fontWeight: 'bold',
+  },
+  receiveButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    backgroundColor: '#0e5699',
+  },
+  receiveButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+});
 
 export default App;

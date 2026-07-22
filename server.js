@@ -1,6 +1,11 @@
 const express = require('express');
 const sql = require('mssql');
-const bcrypt = require('bcrypt');
+let bcrypt;
+try {
+    bcrypt = require('bcrypt');
+} catch (error) {
+    console.warn('Dependencia faltante: instala bcrypt con "npm install bcrypt"');
+}
 const app = express();
 const port = 3000;
 
@@ -15,6 +20,13 @@ const config = {
 
 app.post('/api/login', async (req, res) => {
     const { nomina, password } = req.body;
+
+    if (!bcrypt) {
+        return res.status(500).json({
+            success: false,
+            message: 'Servidor incompleto: falta la dependencia bcrypt'
+        });
+    }
 
     try {
         await sql.connect(config);

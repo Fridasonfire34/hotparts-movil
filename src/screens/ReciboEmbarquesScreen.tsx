@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ImageBackground, TextInput, TouchableOpacity, FlatList, BackHandler, Alert, Modal, Keyboard, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ImageBackground, TextInput, TouchableOpacity, SectionList, BackHandler, Alert, Modal, Keyboard, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, ActivityIndicator } from 'react-native';
 import axios from 'axios';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from './App';
@@ -39,7 +39,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
         const fetchHotParts = async () => {
             setLoading(true);
             try {
-                const response = await axios.get('http://192.168.16.146:3002/api/hotparts/calidad');
+                const response = await axios.get('http://192.168.16.224:3002/api/hotparts/calidad');
                 setHotParts(response.data);
                 setFilteredHotParts(response.data);
             } catch (error) {
@@ -83,7 +83,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
         setLoading(true);
         setRefreshing(true);
         try {
-            const response = await axios.get('http://192.168.16.146:3002/api/hotparts/calidad');
+            const response = await axios.get('http://192.168.16.224:3002/api/hotparts/calidad');
             setHotParts(response.data);
             setFilteredHotParts(response.data);
         } catch (error) {
@@ -119,7 +119,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
             const numerosParte = rowsWithQuantityOne.map((item) => item['Numero de Parte']);
 
             try {
-                const response = await axios.post('http://192.168.16.146:3002/api/hotparts/cantidadRecibo', {
+                const response = await axios.post('http://192.168.16.224:3002/api/hotparts/cantidadRecibo', {
                     folios,
                     cantidades,
                     ordenesCompra,
@@ -160,7 +160,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
         }
 
         try {
-            const response = await axios.post('http://192.168.16.146:3002/api/hotparts/cantidadRecibo', {
+            const response = await axios.post('http://192.168.16.224:3002/api/hotparts/cantidadRecibo', {
                 folios: [item.Folio],
                 cantidades: [quantityToDeliver],
                 nomina: nomina,
@@ -205,7 +205,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
 
         try {
             setLoading(true);
-            const response = await axios.post('http://192.168.16.146:3002/api/hotparts/generarCodigo', {
+            const response = await axios.post('http://192.168.16.224:3002/api/hotparts/generarCodigo', {
                 folios: foliosSeleccionados,
                 nomina
             });
@@ -243,7 +243,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
         try {
             setIsModalVisible(false);
             setLoading(true);
-            const response = await axios.get('http://192.168.16.146:3002/api/hotparts/calidad');
+            const response = await axios.get('http://192.168.16.224:3002/api/hotparts/calidad');
             setHotParts(response.data);
             setFilteredHotParts(response.data);
         } catch (error) {
@@ -265,23 +265,34 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
         }
     };
 
+    const groupedHotParts = React.useMemo(() => {
+        const groups = new Map<number, HotPart[]>();
+        filteredHotParts.forEach((item) => {
+            const secuencia = item['Secuencia'];
+            if (!groups.has(secuencia)) {
+                groups.set(secuencia, []);
+            }
+            groups.get(secuencia)!.push(item);
+        });
+        return Array.from(groups.entries())
+            .sort((a, b) => a[0] - b[0])
+            .map(([secuencia, data]) => ({
+                title: secuencia,
+                data,
+            }));
+    }, [filteredHotParts]);
+
     const renderItem = ({ item }: { item: HotPart }) => {
         const isSelected = selectedItems.some((selectedItem) => selectedItem.Folio === item.Folio);
-    
+
         return (
             <TouchableOpacity
                 style={[styles.card, isSelected && styles.selectedCard]}
                 onPress={() => toggleSelectItem(item)}
             >
-                {/* Primera fila */}
                 <View style={styles.cardRow}>
                     <Text style={styles.cardPart}>{item['Numero de Parte']}</Text>
                     <Text style={styles.cardQty}>{item['Cantidad Faltante']}</Text>
-                </View>
-    
-                {/* Segunda fila */}
-                <View style={styles.cardRow}>
-                    <Text style={styles.cardSecuencia}>Secuencia: {item['Secuencia']}</Text>
                 </View>
             </TouchableOpacity>
         );
@@ -295,7 +306,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
             >
                 <ImageBackground source={require('./assets/fondo2.jpg')} style={styles.container}>
                     <View style={styles.topContainer}>
-                        <Text style={styles.userText}>{nomina} {nombre} {area}</Text>
+                        <Text style={styles.userText}>{nomina}  |  {nombre}  |  {area}</Text>
                     </View>
 
                     <View style={styles.inputContainer}>
@@ -311,24 +322,29 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({ route }) => {
                         {loading ? (
                             <ActivityIndicator size="large" color="#0e5699" />
                         ) : (
-                            <FlatList
-                                data={filteredHotParts}
+                            <SectionList
+                                sections={groupedHotParts}
                                 renderItem={renderItem}
+                                renderSectionHeader={({ section }) => (
+                                    <View style={styles.secuenciaHeader}>
+                                        <Text style={styles.secuenciaHeaderText}>
+                                            Secuencia {section.title}
+                                            <Text style={styles.secuenciaCountText}>
+                                                {'   '}({section.data.length} {section.data.length === 1 ? 'pieza' : 'piezas'})
+                                            </Text>
+                                        </Text>
+                                    </View>
+                                )}
                                 keyExtractor={(item) => item.Folio.toString()}
                                 refreshing={refreshing}
                                 onRefresh={onRefresh}
+                                stickySectionHeadersEnabled={true}
                                 ListEmptyComponent={
                                     <Text style={styles.NoResult}>No hay resultados</Text>
                                 }
-                                ListHeaderComponent={
-                                    filteredHotParts.length > 0 ? (
-                                        <View style={[styles.tableRow, styles.headerRow]}>
-                                        </View>
-                                    ) : null
-                                }
                                 contentContainerStyle={{
                                     flexGrow: 1,
-                                    justifyContent: filteredHotParts.length === 0 ? 'center' : 'flex-start',
+                                    justifyContent: groupedHotParts.length === 0 ? 'center' : 'flex-start',
                                     paddingBottom: 50, // espacio extra para no tapar el último item con el botón
                                   }}
                             />
@@ -650,9 +666,25 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#0e5699',
     },
-    cardSecuencia: {
+    secuenciaHeader: {
+        backgroundColor: '#f0f4f8',
+        borderBottomWidth: 2,
+        borderBottomColor: '#0e5699',
+        paddingVertical: 6,
+        paddingHorizontal: 10,
+        marginTop: 14,
+        marginBottom: 4,
+        marginHorizontal: 4,
+    },
+    secuenciaHeaderText: {
+        color: '#0e5699',
+        fontWeight: 'bold',
+        fontSize: 14,
+    },
+    secuenciaCountText: {
+        color: '#5c7a94',
+        fontWeight: '400',
         fontSize: 12,
-        color: '#555',
     },
 });
 

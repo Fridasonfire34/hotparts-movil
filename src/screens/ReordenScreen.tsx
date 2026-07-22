@@ -43,7 +43,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
         const fetchHotParts = async () => {
             setLoading(true);
             try {
-                const response = await axios.get('http://192.168.16.146:3002/api/hotparts/calidad');
+                const response = await axios.get('http://192.168.16.224:3002/api/hotparts/calidad');
                 setHotParts(response.data);
                 setFilteredHotParts(response.data);
             } catch (error) {
@@ -79,7 +79,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
     const onRefresh = async () => {
         setRefreshing(true);
         try {
-            const response = await axios.get('http://192.168.16.146:3002/api/hotparts/calidad');
+            const response = await axios.get('http://192.168.16.224:3002/api/hotparts/calidad');
             setHotParts(response.data);
             setFilteredHotParts(response.data);
         } catch (error) {
@@ -132,7 +132,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
             const numerosParte = rowsWithQuantityOne.map((item) => item['Numero de Parte']);
 
             try {
-                const response = await axios.post('http://192.168.16.146:3002/api/hotparts/cantidadReorden', {
+                const response = await axios.post('http://192.168.16.224:3002/api/hotparts/cantidadReorden', {
                     folios,
                     cantidades,
                     ordenesCompra,
@@ -174,7 +174,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
         }
 
         try {
-            const response = await axios.post('http://192.168.16.146:3002/api/hotparts/cantidadReorden', {
+            const response = await axios.post('http://192.168.16.224:3002/api/hotparts/cantidadReorden', {
                 folios: [item.Folio],
                 cantidades: [quantityToDeliver],
                 nomina: nomina,
@@ -205,24 +205,24 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
             const foliosSeleccionados = selectedItems.map(item => item.Folio);
             const secuencias = selectedItems.map(item => item['Secuencia']);
 
-            const response = await axios.post('http://192.168.16.146:3002/api/hotparts/ComentariosReorden', {
+            const response = await axios.post('http://192.168.16.224:3002/api/hotparts/ComentariosReorden', {
                 folios: foliosSeleccionados,
                 comentario,
                 nomina: nomina
             });
 
             if (response.data.success) {
-                await axios.post('http://192.168.16.146:3002/api/hotparts/estatusReorden', {
+                await axios.post('http://192.168.16.224:3002/api/hotparts/estatusReorden', {
                     folios: foliosSeleccionados,
                     nomina: nomina
                 });
 
-                await axios.post('http://192.168.16.146:3002/api/hotparts/guardarMovimientoReorden', {
+                await axios.post('http://192.168.16.224:3002/api/hotparts/guardarMovimientoReorden', {
                     folios: foliosSeleccionados,
                     nomina: nomina
                 });
 
-                await axios.post('http://192.168.16.146:3002/api/hotparts/reordenNotif', {
+                await axios.post('http://192.168.16.224:3002/api/hotparts/reordenNotif', {
                     secuencias: secuencias,
                 });
 
@@ -230,7 +230,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                     {
                         text: 'OK',
                         onPress: async () => {
-                            const updateResponse = await axios.get('http://192.168.16.146:3002/api/hotparts/calidad');
+                            const updateResponse = await axios.get('http://192.168.16.224:3002/api/hotparts/calidad');
                             setHotParts(updateResponse.data);
                             setFilteredHotParts(updateResponse.data);
                             setSelectedItems([]);
@@ -258,7 +258,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
         }
 
         try {
-            const response = await axios.post('http://192.168.16.146:3002/api/hotparts/estatusReorden', {
+            const response = await axios.post('http://192.168.16.224:3002/api/hotparts/estatusReorden', {
                 folios,
                 nomina
             });
@@ -272,14 +272,14 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                             text: 'OK',
                             onPress: async () => {
                                 try {
-                                    const guardarMovimientoResponse = await axios.post('http://192.168.16.146:3002/api/hotparts/guardarMovimientoReorden', {
+                                    const guardarMovimientoResponse = await axios.post('http://192.168.16.224:3002/api/hotparts/guardarMovimientoReorden', {
                                         folios: folios,
                                         nomina: nomina
                                     });
                                     
                                     console.log('Movimiento guardado:', guardarMovimientoResponse.data);
 
-                                    await axios.post('http://192.168.16.146:3002/api/hotparts/reordenNotif', {
+                                    await axios.post('http://192.168.16.224:3002/api/hotparts/reordenNotif', {
                                         secuencias: secuencias,
                                     });
                                     navigation.navigate('Menu');
@@ -288,7 +288,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                                     console.error('Error al guardar movimiento de reorden o enviar notificación:', error);
                                 }
 
-                                const updateResponse = await axios.get('http://192.168.16.146:3002/api/hotparts/calidad');
+                                const updateResponse = await axios.get('http://192.168.16.224:3002/api/hotparts/calidad');
                                 setHotParts(updateResponse.data);
                                 setFilteredHotParts(updateResponse.data);
                                 setSelectedItems([]);
@@ -349,7 +349,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                 <ImageBackground source={require('./assets/fondo2.jpg')} style={styles.container}>
 
                     <View style={styles.topContainer}>
-                        <Text style={styles.userText}>{nomina} {nombre} {area}</Text>
+                        <Text style={styles.userText}>{nomina}  |  {nombre}  |  {area}</Text>
                     </View>
 
                     <Modal
