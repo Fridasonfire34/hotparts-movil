@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ImageBackground, Image, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ImageBackground, Image, ActivityIndicator, Alert, ScrollView, Modal, Animated, TextInput } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
@@ -25,9 +27,85 @@ interface Props {
     navigation: MenuScreenNavigationProp;
 }
 
+const SIDEBAR_WIDTH = 280;
+
 const MenuScreen: React.FC<Props> = ({ navigation }) => {
     const [user, setUser] = useState<any>(null);
+    const [hasUnread, setHasUnread] = useState(false);
+    const [sidebarVisible, setSidebarVisible] = useState(false);
+    const [changePasswordVisible, setChangePasswordVisible] = useState(false);
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [changePasswordError, setChangePasswordError] = useState('');
+    const [changePasswordLoading, setChangePasswordLoading] = useState(false);
+    const slideAnim = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
     const insets = useSafeAreaInsets();
+
+    const openSidebar = () => {
+        setSidebarVisible(true);
+        Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 250,
+            useNativeDriver: true,
+        }).start();
+    };
+
+    const closeSidebar = () => {
+        Animated.timing(slideAnim, {
+            toValue: -SIDEBAR_WIDTH,
+            duration: 200,
+            useNativeDriver: true,
+        }).start(() => setSidebarVisible(false));
+    };
+
+    const openChangePassword = () => {
+        closeSidebar();
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setChangePasswordError('');
+        setChangePasswordVisible(true);
+    };
+
+    const closeChangePassword = () => {
+        setChangePasswordVisible(false);
+    };
+
+    const handleSubmitChangePassword = async () => {
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            setChangePasswordError('Completa todos los campos.');
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            setChangePasswordError('La nueva contraseña y su confirmación no coinciden.');
+            return;
+        }
+        if (newPassword.length < 4) {
+            setChangePasswordError('La nueva contraseña debe tener al menos 4 caracteres.');
+            return;
+        }
+
+        setChangePasswordError('');
+        setChangePasswordLoading(true);
+        try {
+            // TODO: endpoint pendiente de crear en el backend (192.168.16.224:3002).
+            await axios.post('http://192.168.16.224:3002/api/hotparts/cambiarPassword', {
+                nomina: user.Nomina,
+                passwordActual: currentPassword,
+                passwordNueva: newPassword,
+            });
+
+            setChangePasswordVisible(false);
+            Alert.alert('Listo', 'Tu contraseña se actualizó correctamente.');
+        } catch (err: any) {
+            setChangePasswordError(
+                err?.response?.data?.message || 'No se pudo actualizar la contraseña. Intenta de nuevo.'
+            );
+        } finally {
+            setChangePasswordLoading(false);
+        }
+    };
 
     useEffect(() => {
         const loadUserData = async () => {
@@ -39,6 +117,19 @@ const MenuScreen: React.FC<Props> = ({ navigation }) => {
 
         loadUserData();
     }, []);
+
+    // Se revisa cada vez que la pantalla recupera el foco (ej. al volver de
+    // Notificaciones, donde se limpia la bandera) para que el punto rojo
+    // desaparezca sin necesidad de recargar el Menu completo.
+    useFocusEffect(
+        useCallback(() => {
+            const checkUnread = async () => {
+                const count = parseInt((await AsyncStorage.getItem('unreadNotificationsCount')) ?? '0', 10);
+                setHasUnread(count > 0);
+            };
+            checkUnread();
+        }, [])
+    );
 
     if (!user) {
         return (
@@ -124,19 +215,11 @@ const MenuScreen: React.FC<Props> = ({ navigation }) => {
                 ]}
             >
                 <View style={styles.topRow}>
-                    <View style={styles.userBadge}>
-                        <View style={styles.userBadgeTopLine}>
-                            <Text style={styles.userBadgeText} numberOfLines={1}>
-                                {user.Nomina} · {user.Nombre}
-                            </Text>
-                            <View style={styles.areaPill}>
-                                <Text style={styles.areaPillText}>{user.Area}</Text>
-                            </View>
-                        </View>
-                        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.7}>
-                            <Text style={styles.logoutButtonText}>Cerrar Sesión</Text>
-                        </TouchableOpacity>
-                    </View>
+                    <TouchableOpacity style={styles.menuButton} onPress={openSidebar} activeOpacity={0.7}>
+                        <View style={styles.menuBar} />
+                        <View style={styles.menuBar} />
+                        <View style={styles.menuBar} />
+                    </TouchableOpacity>
 
                     <TouchableOpacity
                         style={styles.notificationsButton}
@@ -159,6 +242,7 @@ const MenuScreen: React.FC<Props> = ({ navigation }) => {
                                 strokeLinejoin="round"
                             />
                         </Svg>
+                        {hasUnread && <View style={styles.unreadDot} />}
                     </TouchableOpacity>
                 </View>
 
@@ -232,6 +316,136 @@ const MenuScreen: React.FC<Props> = ({ navigation }) => {
 
                 <Text style={styles.footerText}>TMP Hot Parts 2025 ©</Text>
             </ScrollView>
+
+            <Modal transparent visible={sidebarVisible} animationType="none" onRequestClose={closeSidebar}>
+                <View style={styles.sidebarWrapper}>
+                    <TouchableOpacity
+                        style={styles.sidebarBackdrop}
+                        activeOpacity={1}
+                        onPress={closeSidebar}
+                    />
+                    <Animated.View
+                        style={[
+                            styles.sidebarShadowWrapper,
+                            { transform: [{ translateX: slideAnim }] },
+                        ]}
+                    >
+                        <View style={styles.sidebarPanel}>
+                            <View style={[styles.sidebarHeader, { paddingTop: insets.top + 28 }]}>
+                                <View style={styles.sidebarAvatar}>
+                                    <Svg width={30} height={30} viewBox="0 0 24 24" fill="none">
+                                        <Path
+                                            d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Z"
+                                            fill="#116bbf"
+                                        />
+                                        <Path
+                                            d="M4.5 20c0-4.14 3.36-6.5 7.5-6.5s7.5 2.36 7.5 6.5"
+                                            stroke="#116bbf"
+                                            strokeWidth={2}
+                                            strokeLinecap="round"
+                                        />
+                                    </Svg>
+                                </View>
+                                <Text style={styles.sidebarNombre} numberOfLines={1}>{user.Nombre}</Text>
+                                <Text style={styles.sidebarNominaText}>Nómina {user.Nomina}</Text>
+                                <View style={styles.sidebarAreaPillOnHeader}>
+                                    <Text style={styles.sidebarAreaPillText}>{user.Area}</Text>
+                                </View>
+                            </View>
+
+                            <View style={[styles.sidebarBody, { paddingBottom: insets.bottom + 20 }]}>
+                                <TouchableOpacity
+                                    style={styles.changePasswordButton}
+                                    onPress={openChangePassword}
+                                    activeOpacity={0.7}
+                                >
+                                    <Text style={styles.changePasswordButtonText}>Cambiar Contraseña</Text>
+                                </TouchableOpacity>
+
+                                <View style={{ flex: 1 }} />
+
+                                <TouchableOpacity
+                                    style={styles.sidebarLogoutButton}
+                                    onPress={() => {
+                                        closeSidebar();
+                                        handleLogout();
+                                    }}
+                                    activeOpacity={0.7}
+                                >
+                                    <Text style={styles.logoutButtonText}>Cerrar Sesión</Text>
+                                </TouchableOpacity>
+
+                                <Text style={styles.sidebarFooterText}>Hot Parts</Text>
+                            </View>
+                        </View>
+                    </Animated.View>
+                </View>
+            </Modal>
+
+            <Modal
+                transparent
+                animationType="fade"
+                visible={changePasswordVisible}
+                onRequestClose={closeChangePassword}
+            >
+                <View style={styles.cpBackground}>
+                    <View style={styles.cpContainer}>
+                        <Text style={styles.cpTitle}>Cambiar Contraseña</Text>
+
+                        <TextInput
+                            style={styles.cpInput}
+                            placeholder="Contraseña actual"
+                            placeholderTextColor="#a0a0a0"
+                            secureTextEntry
+                            value={currentPassword}
+                            onChangeText={setCurrentPassword}
+                        />
+                        <TextInput
+                            style={styles.cpInput}
+                            placeholder="Nueva contraseña"
+                            placeholderTextColor="#a0a0a0"
+                            secureTextEntry
+                            value={newPassword}
+                            onChangeText={setNewPassword}
+                        />
+                        <TextInput
+                            style={styles.cpInput}
+                            placeholder="Confirmar nueva contraseña"
+                            placeholderTextColor="#a0a0a0"
+                            secureTextEntry
+                            value={confirmPassword}
+                            onChangeText={setConfirmPassword}
+                        />
+
+                        {!!changePasswordError && (
+                            <Text style={styles.cpError}>{changePasswordError}</Text>
+                        )}
+
+                        <View style={styles.cpButtonsRow}>
+                            <TouchableOpacity
+                                style={styles.cpCancelButton}
+                                onPress={closeChangePassword}
+                                activeOpacity={0.7}
+                                disabled={changePasswordLoading}
+                            >
+                                <Text style={styles.cpCancelButtonText}>Cancelar</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.cpSaveButton}
+                                onPress={handleSubmitChangePassword}
+                                activeOpacity={0.7}
+                                disabled={changePasswordLoading}
+                            >
+                                {changePasswordLoading ? (
+                                    <ActivityIndicator size="small" color="white" />
+                                ) : (
+                                    <Text style={styles.cpSaveButtonText}>Guardar</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </ImageBackground>
     );
 };
@@ -249,8 +463,28 @@ const styles = StyleSheet.create({
     topRow: {
         width: '100%',
         flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: 20,
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    menuButton: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 4,
+        backgroundColor: 'rgba(255,255,255,0.9)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    menuBar: {
+        width: 18,
+        height: 2,
+        borderRadius: 1,
+        backgroundColor: '#0d3f73',
     },
     notificationsButton: {
         width: 38,
@@ -265,6 +499,17 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
         elevation: 3,
     },
+    unreadDot: {
+        position: 'absolute',
+        top: 2,
+        right: 4,
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: '#e63946',
+        borderWidth: 1.5,
+        borderColor: 'white',
+    },
     loadingContainer: {
         flex: 1,
         alignItems: 'center',
@@ -276,50 +521,110 @@ const styles = StyleSheet.create({
         color: '#3d3d3d',
         textAlign: 'center',
     },
-    userBadge: {
+    sidebarWrapper: {
         flex: 1,
-        alignItems: 'flex-start',
-        backgroundColor: 'rgba(255,255,255,0.9)',
-        borderRadius: 12,
-        paddingVertical: 10,
-        paddingHorizontal: 14,
-        gap: 8,
+    },
+    sidebarBackdrop: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.35)',
+    },
+    sidebarShadowWrapper: {
+        position: 'absolute',
+        top: 0,
+        bottom: 0,
+        left: 0,
+        width: SIDEBAR_WIDTH,
+        shadowColor: '#000',
+        shadowOffset: { width: 2, height: 0 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 8,
+    },
+    sidebarPanel: {
+        flex: 1,
+        backgroundColor: 'white',
+        borderTopRightRadius: 24,
+        borderBottomRightRadius: 24,
+        overflow: 'hidden',
+    },
+    sidebarHeader: {
+        backgroundColor: '#116bbf',
+        alignItems: 'center',
+        paddingHorizontal: 22,
+        paddingBottom: 26,
+    },
+    sidebarAvatar: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: 'white',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 12,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
+        shadowOpacity: 0.15,
         shadowRadius: 4,
-        elevation: 2,
+        elevation: 3,
     },
-    userBadgeTopLine: {
-        width: '100%',
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 0,
+    sidebarNombre: {
+        fontSize: 17,
+        fontWeight: '700',
+        color: 'white',
+        textAlign: 'center',
     },
-    userBadgeText: {
-        flex: 1,
+    sidebarNominaText: {
         fontSize: 13,
-        color: '#333',
-        fontWeight: '600',
+        color: 'rgba(255,255,255,0.85)',
+        marginTop: 2,
+        marginBottom: 14,
     },
-    areaPill: {
-        backgroundColor: '#116bbf',
+    sidebarAreaPillOnHeader: {
+        backgroundColor: 'rgba(255,255,255,0.18)',
         borderRadius: 20,
-        paddingVertical: 4,
-        paddingHorizontal: 12,
+        paddingVertical: 5,
+        paddingHorizontal: 14,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.4)',
     },
-    areaPillText: {
+    sidebarAreaPillText: {
         color: 'white',
         fontSize: 12,
         fontWeight: 'bold',
     },
-    logoutButton: {
-        alignSelf: 'flex-start',
+    sidebarBody: {
+        flex: 1,
+        paddingHorizontal: 22,
+        paddingTop: 20,
+    },
+    changePasswordButton: {
+        alignSelf: 'stretch',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#116bbf',
+        borderRadius: 20,
+        paddingVertical: 10,
+        marginBottom: 10,
+    },
+    changePasswordButtonText: {
+        color: '#116bbf',
+        fontSize: 12,
+        fontWeight: 'bold',
+    },
+    sidebarLogoutButton: {
+        alignSelf: 'stretch',
+        alignItems: 'center',
         borderWidth: 1,
         borderColor: '#d33',
         borderRadius: 20,
-        paddingVertical: 4,
-        paddingHorizontal: 12,
+        paddingVertical: 10,
+    },
+    sidebarFooterText: {
+        textAlign: 'center',
+        color: '#aaa',
+        fontSize: 11,
+        fontWeight: '600',
+        marginTop: 14,
     },
     logoutButtonText: {
         color: '#d33',
@@ -390,6 +695,72 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '600',
         textAlign: 'center',
+    },
+    cpBackground: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    cpContainer: {
+        width: '85%',
+        backgroundColor: 'white',
+        borderRadius: 14,
+        paddingVertical: 24,
+        paddingHorizontal: 20,
+    },
+    cpTitle: {
+        fontSize: 17,
+        fontWeight: 'bold',
+        color: '#0d3f73',
+        textAlign: 'center',
+        marginBottom: 18,
+    },
+    cpInput: {
+        width: '100%',
+        height: 48,
+        borderColor: '#e2e2e2',
+        borderWidth: 1,
+        marginBottom: 14,
+        paddingHorizontal: 14,
+        borderRadius: 10,
+        backgroundColor: '#f7f7f7',
+        color: 'black',
+        fontSize: 14,
+    },
+    cpError: {
+        color: '#d33',
+        fontSize: 13,
+        textAlign: 'center',
+        marginBottom: 10,
+    },
+    cpButtonsRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: 12,
+        marginTop: 4,
+    },
+    cpCancelButton: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+        backgroundColor: '#e0e0e0',
+    },
+    cpCancelButtonText: {
+        color: '#333',
+        fontWeight: 'bold',
+    },
+    cpSaveButton: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+        backgroundColor: '#0e5699',
+    },
+    cpSaveButtonText: {
+        color: 'white',
+        fontWeight: 'bold',
     },
 });
 

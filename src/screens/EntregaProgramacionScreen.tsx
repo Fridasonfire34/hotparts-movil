@@ -354,16 +354,22 @@ const EntregaProgramacionScreen: React.FC<Props> = ({ route }) => {
                                 style={styles.list}
                                 sections={groupedHotParts}
                                 renderItem={renderItem}
-                                renderSectionHeader={({ section }) => (
-                                    <View style={styles.secuenciaHeader}>
-                                        <Text style={styles.secuenciaHeaderText}>
-                                            Secuencia {section.title}
-                                            <Text style={styles.secuenciaCountText}>
-                                                {'   '}({section.data.length} {section.data.length === 1 ? 'pieza' : 'piezas'})
+                                renderSectionHeader={({ section }) => {
+                                    const totalPiezas = section.data.reduce(
+                                        (sum: number, item: any) => sum + Number(item['Cantidad']),
+                                        0
+                                    );
+                                    return (
+                                        <View style={styles.secuenciaHeader}>
+                                            <Text style={styles.secuenciaHeaderText}>
+                                                Secuencia {section.title}
+                                                <Text style={styles.secuenciaCountText}>
+                                                    {'   '}({totalPiezas} {totalPiezas === 1 ? 'pieza' : 'piezas'})
+                                                </Text>
                                             </Text>
-                                        </Text>
-                                    </View>
-                                )}
+                                        </View>
+                                    );
+                                }}
                                 keyExtractor={(item) => item.Folio.toString()}
                                 refreshing={refreshing}
                                 onRefresh={onRefresh}

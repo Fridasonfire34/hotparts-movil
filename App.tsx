@@ -62,6 +62,13 @@ const App: React.FC = () => {
 
   const handleCerrarSolicitud = () => setSolicitudRecibo(null);
 
+  const bumpUnreadCount = async () => {
+    const current = parseInt((await AsyncStorage.getItem('unreadNotificationsCount')) ?? '0', 10);
+    const next = (Number.isNaN(current) ? 0 : current) + 1;
+    await AsyncStorage.setItem('unreadNotificationsCount', String(next));
+    return next;
+  };
+
   // A qué pantalla de recibo mandar según el destino de la solicitud.
   const RECIBO_SCREEN_BY_DESTINO: Record<string, keyof RootStackParamList> = {
     Produccion: 'ReciboProduccion',
@@ -138,13 +145,17 @@ const App: React.FC = () => {
       messaging().onMessage(async remoteMessage => {
         console.log('📩 Notificación recibida en primer plano:', remoteMessage);
 
+        const unreadCount = await bumpUnreadCount();
+
         await notifee.displayNotification({
           title: remoteMessage.notification?.title,
           body: remoteMessage.notification?.body,
           android: {
             channelId: 'default',
-            smallIcon: 'ic_launcher',
+            smallIcon: 'ic_notification',
             pressAction: { id: 'default' },
+            // Numerito en el ícono de la app (launchers que lo soportan, ej. Samsung One UI).
+            badgeCount: unreadCount,
           },
         });
 
@@ -153,6 +164,10 @@ const App: React.FC = () => {
 
       messaging().setBackgroundMessageHandler(async remoteMessage => {
         console.log('📩 Notificación en segundo plano:', remoteMessage);
+        // Aquí no se controla el ícono de la notificación que Firebase ya
+        // mostró solo (llega con "notification" en el payload); esto solo
+        // mantiene el contador sincronizado para el punto rojo del Menu.
+        await bumpUnreadCount();
       });
 
       // App abierta desde segundo plano al tocar la notificación.

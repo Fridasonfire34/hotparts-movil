@@ -8,10 +8,15 @@ import {
     FlatList,
     Alert,
     ActivityIndicator,
+    Modal,
 } from 'react-native';
 import axios from 'axios';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import notifee from '@notifee/react-native';
+
+const READ_IDS_KEY = 'readNotificationIds';
 
 interface DetalleItem {
     folio: string;
@@ -55,14 +60,35 @@ const NotificacionesScreen: React.FC = () => {
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
     const [notificaciones, setNotificaciones] = useState<NotificacionHistorial[]>([]);
+    const [readIds, setReadIds] = useState<Set<number>>(new Set());
     const [loading, setLoading] = useState<boolean>(false);
     const [refreshing, setRefreshing] = useState(false);
     const [expandedId, setExpandedId] = useState<number | null>(null);
+    const [menuVisible, setMenuVisible] = useState(false);
+
+    const persistReadIds = async (ids: Set<number>) => {
+        await AsyncStorage.setItem(READ_IDS_KEY, JSON.stringify(Array.from(ids)));
+    };
+
+    // El badge/punto rojo del Menu refleja cuántas de las notificaciones
+    // traídas del servidor todavía no se marcan como leídas localmente.
+    const syncPendingCount = async (lista: NotificacionHistorial[], leidas: Set<number>) => {
+        const pendientes = lista.filter((n) => !leidas.has(n.Id)).length;
+        await AsyncStorage.setItem('unreadNotificationsCount', String(pendientes));
+        await notifee.setBadgeCount(pendientes).catch(() => {});
+    };
 
     const fetchNotificaciones = async () => {
         try {
             const response = await axios.get('http://192.168.16.224:3002/api/hotparts/notificaciones');
-            setNotificaciones(response.data);
+            const lista: NotificacionHistorial[] = response.data;
+            setNotificaciones(lista);
+
+            const storedIds = await AsyncStorage.getItem(READ_IDS_KEY);
+            const leidas = new Set<number>(storedIds ? JSON.parse(storedIds) : []);
+            setReadIds(leidas);
+
+            await syncPendingCount(lista, leidas);
         } catch (error) {
             Alert.alert('Error', 'No se pudo obtener el historial de notificaciones.');
         }
@@ -83,14 +109,40 @@ const NotificacionesScreen: React.FC = () => {
         setExpandedId((prev) => (prev === id ? null : id));
     };
 
+    const handleMarcarLeida = (id: number) => {
+        setReadIds((prev) => {
+            const next = new Set(prev).add(id);
+            persistReadIds(next);
+            syncPendingCount(notificaciones, next);
+            return next;
+        });
+    };
+
+    const handleMarcarTodoLeido = () => {
+        setMenuVisible(false);
+        setReadIds((prev) => {
+            const next = new Set(prev);
+            notificaciones.forEach((n) => next.add(n.Id));
+            persistReadIds(next);
+            syncPendingCount(notificaciones, next);
+            return next;
+        });
+    };
+
     const renderItem = ({ item }: { item: NotificacionHistorial }) => {
         const isExpanded = expandedId === item.Id;
         const tieneDetalle = !!item.Detalle && item.Detalle.items.length > 0;
+        const isRead = readIds.has(item.Id);
+        // El backend manda el 🔥 fijo dentro del título; se quita aquí y se
+        // vuelve a poner solo si la notificación sigue sin leerse.
+        const tituloSinFuego = item.Titulo.replace(/^\s*🔥\s*/, '');
 
         return (
-            <View style={styles.card}>
+            <View style={[styles.card, isRead && styles.cardLeida]}>
                 <View style={styles.cardHeader}>
-                    <Text style={styles.cardTitle} numberOfLines={1}>{item.Titulo}</Text>
+                    <Text style={styles.cardTitle} numberOfLines={1}>
+                        {!isRead && '🔥 '}{tituloSinFuego}
+                    </Text>
                     {!!item.Modulo && (
                         <View style={styles.modulePill}>
                             <Text style={styles.modulePillText}>{item.Modulo}</Text>
@@ -100,14 +152,35 @@ const NotificacionesScreen: React.FC = () => {
                 <Text style={styles.cardBody}>{item.Cuerpo}</Text>
                 <Text style={styles.cardDate}>{formatFecha(item.FechaHora)}</Text>
 
-                {tieneDetalle && (
-                    <>
+                <View style={styles.estadoRow}>
+                    {tieneDetalle ? (
                         <TouchableOpacity onPress={() => toggleExpanded(item.Id)} activeOpacity={0.7}>
                             <Text style={styles.detallesToggle}>
                                 {isExpanded ? 'Ocultar Detalles ▴' : 'Detalles ▾'}
                             </Text>
                         </TouchableOpacity>
+                    ) : (
+                        <View />
+                    )}
 
+                    {isRead ? (
+                        <Text style={styles.leidaText}>✓ Leída</Text>
+                    ) : (
+                        <View style={styles.pendienteGroup}>
+                            <Text style={styles.pendienteText}>Pendiente</Text>
+                            <TouchableOpacity
+                                style={styles.okButton}
+                                onPress={() => handleMarcarLeida(item.Id)}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={styles.okButtonText}>OK</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                </View>
+
+                {tieneDetalle && (
+                    <>
                         {isExpanded && (
                             <View style={styles.detalleContainer}>
                                 <Text style={styles.detalleUsuarios}>
@@ -150,8 +223,37 @@ const NotificacionesScreen: React.FC = () => {
                     <Text style={styles.backButtonText}>{'‹'} Volver</Text>
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Notificaciones</Text>
-                <View style={styles.backButton} />
+                <TouchableOpacity
+                    onPress={() => setMenuVisible(true)}
+                    activeOpacity={0.7}
+                    style={[styles.backButton, styles.menuButton]}
+                >
+                    <Text style={styles.menuDots}>⋮</Text>
+                </TouchableOpacity>
             </View>
+
+            <Modal
+                transparent
+                animationType="fade"
+                visible={menuVisible}
+                onRequestClose={() => setMenuVisible(false)}
+            >
+                <TouchableOpacity
+                    style={styles.menuBackdrop}
+                    activeOpacity={1}
+                    onPress={() => setMenuVisible(false)}
+                >
+                    <View style={[styles.menuBox, { top: insets.top + 52 }]}>
+                        <TouchableOpacity
+                            style={styles.menuItem}
+                            onPress={handleMarcarTodoLeido}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={styles.menuItemText}>Marcar todo como leído</Text>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
 
             {loading ? (
                 <ActivityIndicator size="large" color="#0e5699" style={{ marginTop: 40 }} />
@@ -193,6 +295,40 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
         color: '#0d3f73',
+    },
+    menuButton: {
+        alignItems: 'flex-end',
+    },
+    menuDots: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: '#0d3f73',
+    },
+    menuBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.15)',
+    },
+    menuBox: {
+        position: 'absolute',
+        right: 16,
+        backgroundColor: 'white',
+        borderRadius: 10,
+        paddingVertical: 4,
+        minWidth: 200,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
+        elevation: 6,
+    },
+    menuItem: {
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+    },
+    menuItemText: {
+        color: '#0d3f73',
+        fontSize: 14,
+        fontWeight: '600',
     },
     listContent: {
         paddingHorizontal: 16,
@@ -244,8 +380,42 @@ const styles = StyleSheet.create({
         color: '#888',
         textAlign: 'right',
     },
+    cardLeida: {
+        opacity: 0.85,
+    },
+    estadoRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: 10,
+    },
+    pendienteGroup: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    pendienteText: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: '#d33',
+    },
+    okButton: {
+        backgroundColor: '#0e5699',
+        borderRadius: 14,
+        paddingVertical: 5,
+        paddingHorizontal: 18,
+    },
+    okButtonText: {
+        color: 'white',
+        fontSize: 12,
+        fontWeight: 'bold',
+    },
+    leidaText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#4a4a4a',
+    },
     detallesToggle: {
-        marginTop: 8,
         color: '#116bbf',
         fontSize: 13,
         fontWeight: 'bold',
