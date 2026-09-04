@@ -174,7 +174,8 @@ const MenuScreen: React.FC<Props> = ({ navigation }) => {
 
     const handleReorden = () => {
         const routeMap: { [key: string]: string } = {
-            'Calidad': 'ReordenScreen'
+            'Calidad': 'ReordenScreen',
+            'Produccion': 'ReordenScreen',
         };
         if (routeMap[user.Area]) {
             navigation.navigate(routeMap[user.Area], {
@@ -308,6 +309,13 @@ const MenuScreen: React.FC<Props> = ({ navigation }) => {
                                     <Image source={require('./assets/recibir.png')} style={styles.optionIcon} resizeMode="contain" />
                                 </View>
                                 <Text style={styles.optionText}>Recibir Hot Parts</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.optionCard} onPress={handleReorden} activeOpacity={0.85}>
+                                <View style={styles.optionIconWrapper}>
+                                    <Image source={require('./assets/reorden.png')} style={styles.optionIcon} resizeMode="contain" />
+                                </View>
+                                <Text style={styles.optionText}>Reordenar Hot Parts</Text>
                             </TouchableOpacity>
                         </>
                     )}

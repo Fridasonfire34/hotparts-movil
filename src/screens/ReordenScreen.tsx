@@ -15,12 +15,18 @@ interface HotPart {
     Folio: string;
     ['Secuencia']: number;
     ['Numero de Parte']: string;
-    ['Cantidad Faltante']: number;
+    ['Cantidad Recibida de Produccion']?: number;
+    ['Cantidad Faltante por Entregar']?: number;
 }
 
 const ReordenScreen: React.FC<Props> = ({ route }) => {
     const { nomina, nombre, area } = route?.params || {};
     const navigation = useNavigation();
+    // Calidad reordena desde lo que tiene recibido de Produccion; Produccion
+    // reordena desde lo que aun le falta entregar a Calidad.
+    const endpointListado = area === 'Produccion' ? 'produccion' : 'calidad';
+    const getCantidadDisponible = (item: HotPart): number =>
+        Number(area === 'Produccion' ? item['Cantidad Faltante por Entregar'] : item['Cantidad Recibida de Produccion']);
     const [hotParts, setHotParts] = useState<HotPart[]>([]);
     const [filteredHotParts, setFilteredHotParts] = useState<HotPart[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
@@ -30,7 +36,6 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
     const [quantitiesToDeliver, setQuantitiesToDeliver] = useState<Record<string, number>>({});
     const [currentItemIndex, setCurrentItemIndex] = useState(0);
     const [isQuantityModalVisible, setIsQuantityModalVisible] = useState(false);
-    const [foliosCantidadUno, setFoliosCantidadUno] = useState<string[]>([]);
     const [isSearchActive, setIsSearchActive] = useState(false);
     const [isComentarioModalVisible, setIsComentarioModalVisible] = useState(false);
     const [comentario, setComentario] = useState('');
@@ -43,7 +48,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
         const fetchHotParts = async () => {
             setLoading(true);
             try {
-                const response = await axios.get('http://192.168.16.224:3002/api/hotparts/calidad');
+                const response = await axios.get(`http://192.168.16.224:3002/api/hotparts/${endpointListado}`);
                 setHotParts(response.data);
                 setFilteredHotParts(response.data);
             } catch (error) {
@@ -66,7 +71,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
         };
 
         fetchHotParts();
-    }, []);
+    }, [endpointListado]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -79,7 +84,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
     const onRefresh = async () => {
         setRefreshing(true);
         try {
-            const response = await axios.get('http://192.168.16.224:3002/api/hotparts/calidad');
+            const response = await axios.get(`http://192.168.16.224:3002/api/hotparts/${endpointListado}`);
             setHotParts(response.data);
             setFilteredHotParts(response.data);
         } catch (error) {
@@ -97,7 +102,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
 
         const filtered = hotParts.filter(
             (item) =>
-                item['Cantidad Faltante'] > 0 &&
+                getCantidadDisponible(item) > 0 &&
                 item['Numero de Parte'].toLowerCase().includes(trimmedText)
         );
 
@@ -117,59 +122,52 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
     };
 
     const handleRecibirHotPart = async () => {
-        const rowsWithQuantityOne = selectedItems.filter(
-            (item) => item['Cantidad Faltante'] === 1
-        );
+        if (selectedItems.length === 0) {
+            Alert.alert('Aviso', 'No se seleccionaron piezas para reordenar.');
+            return;
+        }
 
-        const rowsWithQuantityGreaterThanOne = selectedItems.filter(
-            (item) => item['Cantidad Faltante'] > 1
-        );
+        const item = selectedItems[0];
+        const cantidadDisponible = getCantidadDisponible(item);
 
-        if (rowsWithQuantityOne.length > 0) {
-            const folios = rowsWithQuantityOne.map((item) => item.Folio);
-            const cantidades = rowsWithQuantityOne.map((item) => item['Cantidad Faltante']);
-            const ordenesCompra = rowsWithQuantityOne.map((item) => item['Secuencia']);
-            const numerosParte = rowsWithQuantityOne.map((item) => item['Numero de Parte']);
-
+        if (cantidadDisponible === 1) {
+            // Cantidad disponible es 1: se reordena directo, sin preguntar cuantas piezas.
             try {
                 const response = await axios.post('http://192.168.16.224:3002/api/hotparts/cantidadReorden', {
-                    folios,
-                    cantidades,
-                    ordenesCompra,
-                    numerosParte,
+                    folios: [item.Folio],
+                    cantidades: [1],
+                    ordenesCompra: [item['Secuencia']],
+                    numerosParte: [item['Numero de Parte']],
                     nomina,
                 });
 
                 if (response.data.success) {
-                    console.log('Filas con cantidad 1 procesadas correctamente.');
-                    setFoliosCantidadUno(folios);
-                    setSelectedItems(rowsWithQuantityOne);
-                    setShowComentarioPrompt(true); // Preguntar si se desea agregar comentario
+                    setShowComentarioPrompt(true);
                 } else {
                     Alert.alert('Error', response.data.message);
                 }
             } catch (error) {
-                console.error('Error al procesar las filas con cantidad 1:', error);
-                Alert.alert('Error', 'Hubo un error al procesar las filas con cantidad 1.');
+                console.error('Error al procesar la pieza con cantidad 1:', error);
+                Alert.alert('Error', 'Hubo un error al procesar la pieza.');
             }
+            return;
         }
 
-        if (rowsWithQuantityGreaterThanOne.length > 0) {
-            setSelectedItems(rowsWithQuantityGreaterThanOne);
-            setCurrentItemIndex(0);
-            setIsQuantityModalVisible(true);
-        }
-
-        if (rowsWithQuantityOne.length === 0 && rowsWithQuantityGreaterThanOne.length === 0) {
-            Alert.alert('Aviso', 'No se seleccionaron piezas con cantidad válida.');
-        }
+        // Cantidad disponible mayor a 1: preguntar cuantas piezas se van a reordenar.
+        setCurrentItemIndex(0);
+        setIsQuantityModalVisible(true);
     };
     const handleQuantityConfirm = async () => {
         const item = selectedItems[currentItemIndex];
         const quantityToDeliver = quantitiesToDeliver[item.Folio];
+        const maxCantidad = getCantidadDisponible(item);
+        const hasValidMax = Number.isFinite(maxCantidad) && maxCantidad > 0;
 
-        if (!quantityToDeliver || quantityToDeliver <= 0 || quantityToDeliver > item['Cantidad Faltante']) {
-            Alert.alert('Error', `La cantidad ingresada para el Hot Part ${item['Numero de Parte']} debe ser mayor a 0 y menor o igual a la cantidad disponible.`);
+        if (!quantityToDeliver || quantityToDeliver <= 0 || (hasValidMax && quantityToDeliver > maxCantidad)) {
+            Alert.alert(
+                'Error',
+                `La cantidad ingresada para el Hot Part ${item['Numero de Parte']} debe ser mayor a 0${hasValidMax ? ` y menor o igual a ${maxCantidad}` : ''}.`
+            );
             return;
         }
 
@@ -204,6 +202,8 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
         try {
             const foliosSeleccionados = selectedItems.map(item => item.Folio);
             const secuencias = selectedItems.map(item => item['Secuencia']);
+            const numerosParteSeleccionados = selectedItems.map(item => item['Numero de Parte']);
+            const cantidadesSeleccionadas = selectedItems.map(item => quantitiesToDeliver[item.Folio] ?? 1);
 
             const response = await axios.post('http://192.168.16.224:3002/api/hotparts/ComentariosReorden', {
                 folios: foliosSeleccionados,
@@ -214,23 +214,28 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
             if (response.data.success) {
                 await axios.post('http://192.168.16.224:3002/api/hotparts/estatusReorden', {
                     folios: foliosSeleccionados,
-                    nomina: nomina
+                    nomina: nomina,
+                    area
                 });
 
                 await axios.post('http://192.168.16.224:3002/api/hotparts/guardarMovimientoReorden', {
                     folios: foliosSeleccionados,
-                    nomina: nomina
+                    nomina: nomina,
+                    area
                 });
 
                 await axios.post('http://192.168.16.224:3002/api/hotparts/reordenNotif', {
+                    folios: foliosSeleccionados,
+                    numerosParte: numerosParteSeleccionados,
                     secuencias: secuencias,
+                    cantidades: cantidadesSeleccionadas,
                 });
 
                 Alert.alert('Éxito', 'Comentario registrado correctamente.', [
                     {
                         text: 'OK',
                         onPress: async () => {
-                            const updateResponse = await axios.get('http://192.168.16.224:3002/api/hotparts/calidad');
+                            const updateResponse = await axios.get(`http://192.168.16.224:3002/api/hotparts/${endpointListado}`);
                             setHotParts(updateResponse.data);
                             setFilteredHotParts(updateResponse.data);
                             setSelectedItems([]);
@@ -251,6 +256,8 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
     const handleReordenSinComentario = async () => {
         const folios = selectedItems.map(item => item.Folio);
         const secuencias = selectedItems.map(item => item['Secuencia']);
+        const numerosParte = selectedItems.map(item => item['Numero de Parte']);
+        const cantidades = selectedItems.map(item => quantitiesToDeliver[item.Folio] ?? 1);
 
         if (folios.length === 0) {
             Alert.alert('Aviso', 'No hay piezas seleccionadas para registrar.');
@@ -260,7 +267,8 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
         try {
             const response = await axios.post('http://192.168.16.224:3002/api/hotparts/estatusReorden', {
                 folios,
-                nomina
+                nomina,
+                area
             });
 
             if (response.data.success) {
@@ -274,13 +282,17 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                                 try {
                                     const guardarMovimientoResponse = await axios.post('http://192.168.16.224:3002/api/hotparts/guardarMovimientoReorden', {
                                         folios: folios,
-                                        nomina: nomina
+                                        nomina: nomina,
+                                        area
                                     });
                                     
                                     console.log('Movimiento guardado:', guardarMovimientoResponse.data);
 
                                     await axios.post('http://192.168.16.224:3002/api/hotparts/reordenNotif', {
-                                        secuencias: secuencias,
+                                        folios,
+                                        numerosParte,
+                                        secuencias,
+                                        cantidades,
                                     });
                                     navigation.navigate('Menu');
 
@@ -288,7 +300,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                                     console.error('Error al guardar movimiento de reorden o enviar notificación:', error);
                                 }
 
-                                const updateResponse = await axios.get('http://192.168.16.224:3002/api/hotparts/calidad');
+                                const updateResponse = await axios.get(`http://192.168.16.224:3002/api/hotparts/${endpointListado}`);
                                 setHotParts(updateResponse.data);
                                 setFilteredHotParts(updateResponse.data);
                                 setSelectedItems([]);
@@ -329,7 +341,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                 {/* Primera fila */}
                 <View style={styles.cardRow}>
                     <Text style={styles.cardPart}>{item['Numero de Parte']}</Text>
-                    <Text style={styles.cardQty}>{item['Cantidad Faltante']}</Text>
+                    <Text style={styles.cardQty}>{getCantidadDisponible(item)}</Text>
                 </View>
     
                 {/* Segunda fila */}
@@ -435,7 +447,14 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                                 {selectedItems.length > 0 && currentItemIndex < selectedItems.length && (
                                     <View key={selectedItems[currentItemIndex].Folio}>
                                         <Text style={styles.modalTitle}>
-                                            El Hot Part: {selectedItems[currentItemIndex]['Numero de Parte']} contiene {selectedItems[currentItemIndex]['Cantidad Faltante']} piezas. ¿Cuántas se van a Reordenar?
+                                            {(() => {
+                                                const activeItem = selectedItems[currentItemIndex];
+                                                const maxCantidad = getCantidadDisponible(activeItem);
+                                                const hasValidMax = Number.isFinite(maxCantidad) && maxCantidad > 0;
+                                                return hasValidMax
+                                                    ? `El Hot Part: ${activeItem['Numero de Parte']} contiene ${maxCantidad} piezas. ¿Cuántas se van a Reordenar?`
+                                                    : `¿Cuántas piezas del Hot Part ${activeItem['Numero de Parte']} se van a Reordenar?`;
+                                            })()}
                                         </Text>
                                         <TextInput
                                             style={styles.input}
