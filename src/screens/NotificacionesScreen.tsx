@@ -80,7 +80,7 @@ const NotificacionesScreen: React.FC = () => {
 
     const fetchNotificaciones = async () => {
         try {
-            const response = await axios.get('http://192.168.16.224:3002/api/hotparts/notificaciones');
+            const response = await axios.get('http://192.168.16.146:3002/api/hotparts/notificaciones');
             const lista: NotificacionHistorial[] = response.data;
             setNotificaciones(lista);
 

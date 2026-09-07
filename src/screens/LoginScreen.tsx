@@ -55,7 +55,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         try {
             setError('');
 
-            const response = await fetch('http://192.168.16.224:3002/api/hotparts/login', {
+            const response = await fetch('http://192.168.16.146:3002/api/hotparts/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -76,7 +76,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
                 const token = await messaging().getToken();
                 console.log('FCM Token:', token);
 
-                await fetch('http://192.168.16.224:3002/api/hotparts/registroToken', {
+                await fetch('http://192.168.16.146:3002/api/hotparts/registroToken', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

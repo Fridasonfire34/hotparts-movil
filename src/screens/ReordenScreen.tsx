@@ -48,7 +48,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
         const fetchHotParts = async () => {
             setLoading(true);
             try {
-                const response = await axios.get(`http://192.168.16.224:3002/api/hotparts/${endpointListado}`);
+                const response = await axios.get(`http://192.168.16.146:3002/api/hotparts/${endpointListado}`);
                 setHotParts(response.data);
                 setFilteredHotParts(response.data);
             } catch (error) {
@@ -84,7 +84,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
     const onRefresh = async () => {
         setRefreshing(true);
         try {
-            const response = await axios.get(`http://192.168.16.224:3002/api/hotparts/${endpointListado}`);
+            const response = await axios.get(`http://192.168.16.146:3002/api/hotparts/${endpointListado}`);
             setHotParts(response.data);
             setFilteredHotParts(response.data);
         } catch (error) {
@@ -133,7 +133,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
         if (cantidadDisponible === 1) {
             // Cantidad disponible es 1: se reordena directo, sin preguntar cuantas piezas.
             try {
-                const response = await axios.post('http://192.168.16.224:3002/api/hotparts/cantidadReorden', {
+                const response = await axios.post('http://192.168.16.146:3002/api/hotparts/cantidadReorden', {
                     folios: [item.Folio],
                     cantidades: [1],
                     ordenesCompra: [item['Secuencia']],
@@ -172,7 +172,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
         }
 
         try {
-            const response = await axios.post('http://192.168.16.224:3002/api/hotparts/cantidadReorden', {
+            const response = await axios.post('http://192.168.16.146:3002/api/hotparts/cantidadReorden', {
                 folios: [item.Folio],
                 cantidades: [quantityToDeliver],
                 nomina: nomina,
@@ -205,26 +205,26 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
             const numerosParteSeleccionados = selectedItems.map(item => item['Numero de Parte']);
             const cantidadesSeleccionadas = selectedItems.map(item => quantitiesToDeliver[item.Folio] ?? 1);
 
-            const response = await axios.post('http://192.168.16.224:3002/api/hotparts/ComentariosReorden', {
+            const response = await axios.post('http://192.168.16.146:3002/api/hotparts/ComentariosReorden', {
                 folios: foliosSeleccionados,
                 comentario,
                 nomina: nomina
             });
 
             if (response.data.success) {
-                await axios.post('http://192.168.16.224:3002/api/hotparts/estatusReorden', {
+                await axios.post('http://192.168.16.146:3002/api/hotparts/estatusReorden', {
                     folios: foliosSeleccionados,
                     nomina: nomina,
                     area
                 });
 
-                await axios.post('http://192.168.16.224:3002/api/hotparts/guardarMovimientoReorden', {
+                await axios.post('http://192.168.16.146:3002/api/hotparts/guardarMovimientoReorden', {
                     folios: foliosSeleccionados,
                     nomina: nomina,
                     area
                 });
 
-                await axios.post('http://192.168.16.224:3002/api/hotparts/reordenNotif', {
+                await axios.post('http://192.168.16.146:3002/api/hotparts/reordenNotif', {
                     folios: foliosSeleccionados,
                     numerosParte: numerosParteSeleccionados,
                     secuencias: secuencias,
@@ -235,7 +235,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                     {
                         text: 'OK',
                         onPress: async () => {
-                            const updateResponse = await axios.get(`http://192.168.16.224:3002/api/hotparts/${endpointListado}`);
+                            const updateResponse = await axios.get(`http://192.168.16.146:3002/api/hotparts/${endpointListado}`);
                             setHotParts(updateResponse.data);
                             setFilteredHotParts(updateResponse.data);
                             setSelectedItems([]);
@@ -265,7 +265,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
         }
 
         try {
-            const response = await axios.post('http://192.168.16.224:3002/api/hotparts/estatusReorden', {
+            const response = await axios.post('http://192.168.16.146:3002/api/hotparts/estatusReorden', {
                 folios,
                 nomina,
                 area
@@ -280,7 +280,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                             text: 'OK',
                             onPress: async () => {
                                 try {
-                                    const guardarMovimientoResponse = await axios.post('http://192.168.16.224:3002/api/hotparts/guardarMovimientoReorden', {
+                                    const guardarMovimientoResponse = await axios.post('http://192.168.16.146:3002/api/hotparts/guardarMovimientoReorden', {
                                         folios: folios,
                                         nomina: nomina,
                                         area
@@ -288,7 +288,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                                     
                                     console.log('Movimiento guardado:', guardarMovimientoResponse.data);
 
-                                    await axios.post('http://192.168.16.224:3002/api/hotparts/reordenNotif', {
+                                    await axios.post('http://192.168.16.146:3002/api/hotparts/reordenNotif', {
                                         folios,
                                         numerosParte,
                                         secuencias,
@@ -300,7 +300,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                                     console.error('Error al guardar movimiento de reorden o enviar notificación:', error);
                                 }
 
-                                const updateResponse = await axios.get(`http://192.168.16.224:3002/api/hotparts/${endpointListado}`);
+                                const updateResponse = await axios.get(`http://192.168.16.146:3002/api/hotparts/${endpointListado}`);
                                 setHotParts(updateResponse.data);
                                 setFilteredHotParts(updateResponse.data);
                                 setSelectedItems([]);

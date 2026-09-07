@@ -39,6 +39,12 @@ const MenuScreen: React.FC<Props> = ({ navigation }) => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [changePasswordError, setChangePasswordError] = useState('');
     const [changePasswordLoading, setChangePasswordLoading] = useState(false);
+    // Para Produccion y Calidad, Entregar/Reordenar se deshabilitan si no hay
+    // piezas disponibles bajo el mismo criterio que ya usan esas pantallas.
+    // Por defecto quedan habilitados: si la verificación falla por red, no se
+    // bloquea al usuario (la pantalla destino ya maneja "sin resultados").
+    const [canEntregar, setCanEntregar] = useState(true);
+    const [canReorden, setCanReorden] = useState(true);
     const slideAnim = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
     const insets = useSafeAreaInsets();
 
@@ -89,8 +95,8 @@ const MenuScreen: React.FC<Props> = ({ navigation }) => {
         setChangePasswordError('');
         setChangePasswordLoading(true);
         try {
-            // TODO: endpoint pendiente de crear en el backend (192.168.16.224:3002).
-            await axios.post('http://192.168.16.224:3002/api/hotparts/cambiarPassword', {
+            // TODO: endpoint pendiente de crear en el backend (192.168.16.146:3002).
+            await axios.post('http://192.168.16.146:3002/api/hotparts/cambiarPassword', {
                 nomina: user.Nomina,
                 passwordActual: currentPassword,
                 passwordNueva: newPassword,
@@ -129,6 +135,37 @@ const MenuScreen: React.FC<Props> = ({ navigation }) => {
             };
             checkUnread();
         }, [])
+    );
+
+    // Se revisa también cada vez que el Menu recupera el foco (ej. al volver
+    // de entregar/reordenar) para que los botones reflejen el estado actual.
+    useFocusEffect(
+        useCallback(() => {
+            const checkAvailability = async () => {
+                if (!user || (user.Area !== 'Produccion' && user.Area !== 'Calidad')) {
+                    return;
+                }
+
+                try {
+                    const endpoint = user.Area === 'Produccion' ? 'Produccion' : 'calidad';
+                    const response = await axios.get(`http://192.168.16.146:3002/api/hotparts/${endpoint}`);
+                    const data: any[] = response.data || [];
+
+                    if (user.Area === 'Produccion') {
+                        const hasFaltante = data.some((item) => Number(item['Cantidad Faltante por Entregar']) > 0);
+                        setCanEntregar(hasFaltante);
+                        setCanReorden(hasFaltante);
+                    } else {
+                        setCanEntregar(data.some((item) => Number(item['Cantidad Faltante de Entregar']) > 0));
+                        setCanReorden(data.some((item) => Number(item['Cantidad Recibida de Produccion']) > 0));
+                    }
+                } catch (error) {
+                    console.error('Error al verificar disponibilidad de Hot Parts:', error);
+                }
+            };
+
+            checkAvailability();
+        }, [user])
     );
 
     if (!user) {
@@ -272,7 +309,12 @@ const MenuScreen: React.FC<Props> = ({ navigation }) => {
 
                     {user.Area === 'Calidad' && (
                         <>
-                            <TouchableOpacity style={styles.optionCard} onPress={handleEntrega} activeOpacity={0.85}>
+                            <TouchableOpacity
+                                style={[styles.optionCard, !canEntregar && styles.optionCardDisabled]}
+                                onPress={handleEntrega}
+                                activeOpacity={0.85}
+                                disabled={!canEntregar}
+                            >
                                 <View style={styles.optionIconWrapper}>
                                     <Image source={require('./assets/entrega.png')} style={styles.optionIcon} resizeMode="contain" />
                                 </View>
@@ -286,7 +328,12 @@ const MenuScreen: React.FC<Props> = ({ navigation }) => {
                                 <Text style={styles.optionText}>Recibir Hot Parts</Text>
                             </TouchableOpacity>
 
-                            <TouchableOpacity style={styles.optionCard} onPress={handleReorden} activeOpacity={0.85}>
+                            <TouchableOpacity
+                                style={[styles.optionCard, !canReorden && styles.optionCardDisabled]}
+                                onPress={handleReorden}
+                                activeOpacity={0.85}
+                                disabled={!canReorden}
+                            >
                                 <View style={styles.optionIconWrapper}>
                                     <Image source={require('./assets/reorden.png')} style={styles.optionIcon} resizeMode="contain" />
                                 </View>
@@ -297,7 +344,12 @@ const MenuScreen: React.FC<Props> = ({ navigation }) => {
 
                     {user.Area === 'Produccion' && (
                         <>
-                            <TouchableOpacity style={styles.optionCard} onPress={handleEntrega} activeOpacity={0.85}>
+                            <TouchableOpacity
+                                style={[styles.optionCard, !canEntregar && styles.optionCardDisabled]}
+                                onPress={handleEntrega}
+                                activeOpacity={0.85}
+                                disabled={!canEntregar}
+                            >
                                 <View style={styles.optionIconWrapper}>
                                     <Image source={require('./assets/entrega.png')} style={styles.optionIcon} resizeMode="contain" />
                                 </View>
@@ -311,7 +363,12 @@ const MenuScreen: React.FC<Props> = ({ navigation }) => {
                                 <Text style={styles.optionText}>Recibir Hot Parts</Text>
                             </TouchableOpacity>
 
-                            <TouchableOpacity style={styles.optionCard} onPress={handleReorden} activeOpacity={0.85}>
+                            <TouchableOpacity
+                                style={[styles.optionCard, !canReorden && styles.optionCardDisabled]}
+                                onPress={handleReorden}
+                                activeOpacity={0.85}
+                                disabled={!canReorden}
+                            >
                                 <View style={styles.optionIconWrapper}>
                                     <Image source={require('./assets/reorden.png')} style={styles.optionIcon} resizeMode="contain" />
                                 </View>
@@ -676,6 +733,9 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.12,
         shadowRadius: 8,
         elevation: 4,
+    },
+    optionCardDisabled: {
+        opacity: 0.4,
     },
     optionIconWrapper: {
         width: 112,

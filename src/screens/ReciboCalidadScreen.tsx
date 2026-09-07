@@ -49,7 +49,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
     const fetchListadoEntregaProduccion = async () => {
         setLoading(true);
         try {
-            const response = await axios.post('http://192.168.16.224:3002/api/hotparts/listadoEntregaProduccion', { nomina });
+            const response = await axios.post('http://192.168.16.146:3002/api/hotparts/listadoEntregaProduccion', { nomina });
             const data = (response.data.data ?? []).map(mapListadoItem);
             setHotParts(data);
             setFilteredHotParts(data);
@@ -142,7 +142,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
             // Valida que el QR escaneado sea justo de Hot Parts que Producción tiene
             // pendientes para esta pantalla, y no de otro flujo (p. ej. Programación->Producción)
             // por haber escaneado por error el QR de otro dispositivo.
-            const response = await axios.post('http://192.168.16.224:3002/api/hotparts/listadoEntregaProduccion', { nomina });
+            const response = await axios.post('http://192.168.16.146:3002/api/hotparts/listadoEntregaProduccion', { nomina });
             const foliosValidos = new Set((response.data.data ?? []).map((row: any) => row.FOLIO ?? row.Folio));
             const foliosInvalidos = items.filter((item) => !foliosValidos.has(item.Folio));
 
@@ -173,7 +173,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
 
         try {
             setLoading(true);
-            const response = await axios.post('http://192.168.16.224:3002/api/hotparts/cantidadRecibo', {
+            const response = await axios.post('http://192.168.16.146:3002/api/hotparts/cantidadRecibo', {
                 folios,
                 cantidades,
                 ordenesCompra,
@@ -186,7 +186,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
                 return;
             }
 
-            const codigoResponse = await axios.post('http://192.168.16.224:3002/api/hotparts/generarCodigo', {
+            const codigoResponse = await axios.post('http://192.168.16.146:3002/api/hotparts/generarCodigo', {
                 folios,
                 nomina,
             });
@@ -221,7 +221,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
             const numerosParte = rowsWithQuantityOne.map((item) => item['Numero de Parte']);
 
             try {
-                const response = await axios.post('http://192.168.16.224:3002/api/hotparts/cantidadRecibo', {
+                const response = await axios.post('http://192.168.16.146:3002/api/hotparts/cantidadRecibo', {
                     folios,
                     cantidades,
                     ordenesCompra,
@@ -262,7 +262,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
         }
 
         try {
-            const response = await axios.post('http://192.168.16.224:3002/api/hotparts/cantidadRecibo', {
+            const response = await axios.post('http://192.168.16.146:3002/api/hotparts/cantidadRecibo', {
                 folios: [item.Folio],
                 cantidades: [quantityToDeliver],
                 nomina: nomina,
@@ -306,7 +306,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({ route }) => {
 
         try {
             setLoading(true);
-            const response = await axios.post('http://192.168.16.224:3002/api/hotparts/generarCodigo', {
+            const response = await axios.post('http://192.168.16.146:3002/api/hotparts/generarCodigo', {
                 folios: foliosSeleccionados,
                 nomina
             });
