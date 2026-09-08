@@ -18,11 +18,13 @@ import ReciboCalidadScreen from './src/screens/ReciboCalidadScreen';
 import ReciboEmbarquesScreen from './src/screens/ReciboEmbarquesScreen';
 import ReordenScreen from './src/screens/ReordenScreen';
 import NotificacionesScreen from './src/screens/NotificacionesScreen';
+import VerHotPartsScreen from './src/screens/VerHotPartsScreen';
 
 export type RootStackParamList = {
   Login: undefined;
   Menu: undefined;
   Notificaciones: undefined;
+  VerHotParts: undefined;
   EntregaProgramacion: { nomina: string; nombre: string; area: string };
   EntregaProduccion: { nomina: string; nombre: string; area: string; nominaEntrega?: string };
   EntregaCalidad: { nomina: string; nombre: string; area: string };
@@ -192,6 +194,7 @@ const App: React.FC = () => {
           <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Menu" component={MenuScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Notificaciones" component={NotificacionesScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="VerHotParts" component={VerHotPartsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="EntregaProgramacion" component={EntregaProgramacionScreen} options={{ headerShown: false }} />
           <Stack.Screen name="EntregaProduccion" component={EntregaProduccionScreen} options={{ headerShown: false }} />
           <Stack.Screen name="EntregaCalidad" component={EntregaCalidadScreen} options={{ headerShown: false }} />

@@ -12,6 +12,7 @@ type RootStackParamList = {
     Login: undefined;
     Menu: undefined;
     Notificaciones: undefined;
+    VerHotParts: undefined;
     EntregaProgramacion: { nomina: string; nombre: string; area: string };
     EntregaProduccion: { nomina: string; nombre: string; area: string };
     EntregaCalidad: { nomina: string; nombre: string; area: string };
@@ -420,6 +421,17 @@ const MenuScreen: React.FC<Props> = ({ navigation }) => {
 
                             <View style={[styles.sidebarBody, { paddingBottom: insets.bottom + 20 }]}>
                                 <TouchableOpacity
+                                    style={styles.viewAllHotPartsButton}
+                                    onPress={() => {
+                                        closeSidebar();
+                                        navigation.navigate('VerHotParts');
+                                    }}
+                                    activeOpacity={0.7}
+                                >
+                                    <Text style={styles.viewAllHotPartsButtonText}>Ver todos los HotParts</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
                                     style={styles.changePasswordButton}
                                     onPress={openChangePassword}
                                     activeOpacity={0.7}
@@ -661,6 +673,19 @@ const styles = StyleSheet.create({
         flex: 1,
         paddingHorizontal: 22,
         paddingTop: 20,
+    },
+    viewAllHotPartsButton: {
+        alignSelf: 'stretch',
+        alignItems: 'center',
+        backgroundColor: '#116bbf',
+        borderRadius: 20,
+        paddingVertical: 10,
+        marginBottom: 10,
+    },
+    viewAllHotPartsButtonText: {
+        color: 'white',
+        fontSize: 12,
+        fontWeight: 'bold',
     },
     changePasswordButton: {
         alignSelf: 'stretch',
