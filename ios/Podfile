@@ -17,6 +17,16 @@ end
 target 'hotparts' do
   config = use_native_modules!
 
+  # Use modular headers only for the specific Firebase pods that need them
+  # (fixes "Redefinition of module 'ReactCommon'" caused by global use_modular_headers!)
+  pod 'FirebaseCore', :modular_headers => true
+  pod 'Firebase', :modular_headers => true
+  pod 'FirebaseCoreInternal', :modular_headers => true
+  pod 'FirebaseCoreExtension', :modular_headers => true
+  pod 'FirebaseInstallations', :modular_headers => true
+  pod 'FirebaseMessaging', :modular_headers => true
+  pod 'GoogleUtilities', :modular_headers => true
+
   use_react_native!(
     :path => config[:reactNativePath],
     # An absolute path to your application root.
@@ -31,5 +41,47 @@ target 'hotparts' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # Build fmt as header-only to avoid consteval compile errors in fmt v11
+    installer.pods_project.targets.each do |target|
+      if target.name == 'fmt'
+        target.build_configurations.each do |config|
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+          defs = config.build_settings['GCC_PREPROCESSOR_DEFINITIONS']
+          unless defs.any? { |d| d.to_s.include?('FMT_HEADER_ONLY') }
+            defs << 'FMT_HEADER_ONLY=1'
+          end
+        end
+
+        # Remove the compiled source file format.cc so fmt is header-only
+        if target.source_build_phase
+          files_to_remove = []
+          target.source_build_phase.files.each do |f|
+            path = f.file_ref && f.file_ref.path
+            if path && path.end_with?('format.cc')
+              files_to_remove << f
+            end
+          end
+          files_to_remove.each { |f| f.remove_from_project }
+        end
+      end
+    end
+
+    # Patch fmt/base.h to disable buggy consteval on Apple Clang (Xcode 26.4+)
+    fmt_pod_dir = installer.sandbox.pod_dir('fmt').to_s
+    fmt_base_header = File.join(fmt_pod_dir, 'include', 'fmt', 'base.h')
+    if File.exist?(fmt_base_header)
+      content = File.read(fmt_base_header)
+      patched = content
+        .gsub(
+          '#elif defined(__cpp_consteval)',
+          '#elif defined(__cpp_consteval) && !defined(__apple_build_version__)'
+        )
+        .gsub(
+          '#elif FMT_GCC_VERSION >= 1002 || FMT_CLANG_VERSION >= 1101',
+          '#elif !defined(__apple_build_version__) && (FMT_GCC_VERSION >= 1002 || FMT_CLANG_VERSION >= 1101)'
+        )
+      File.write(fmt_base_header, patched) if patched != content
+    end
   end
 end
