@@ -73,19 +73,25 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
                 setNomina('');
                 setPassword('');
 
-                const token = await messaging().getToken();
-                console.log('FCM Token:', token);
+                // El registro de notificaciones push no debe bloquear el login si falla
+                // (por ejemplo, si falta la entitlement "aps-environment" en el proyecto de iOS).
+                try {
+                    const token = await messaging().getToken();
+                    console.log('FCM Token:', token);
 
-                await fetch('http://192.168.16.146:3002/api/hotparts/registroToken', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        token: token,
-                        nomina: nomina,
-                    }),
-                });
+                    await fetch('http://192.168.16.146:3002/api/hotparts/registroToken', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            token: token,
+                            nomina: nomina,
+                        }),
+                    });
+                } catch (pushErr) {
+                    console.warn('No se pudo registrar el token de notificaciones push:', pushErr);
+                }
 
                 // ✅ Solicitar permiso de cámara después de iniciar sesión
                 const cameraGranted = await requestCameraPermission();
