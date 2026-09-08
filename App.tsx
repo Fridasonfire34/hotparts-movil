@@ -39,10 +39,25 @@ export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 const Stack = createStackNavigator<RootStackParamList>();
 const VERSION_JSON_URL = 'https://hot-parts.web.app/version.json'; // La URL de tu version.json
 
+// Versión instalada de la app. Debe actualizarse a mano en cada release para
+// que coincida con el "version" que se publica en public/version.json.
+const CURRENT_APP_VERSION = '1.3';
+
+// Compara versiones tipo "1.0.10" vs "1.0.7" numéricamente (no como texto).
+const esVersionMasNueva = (remota: string, actual: string) => {
+  const a = remota.split('.').map(Number);
+  const b = actual.split('.').map(Number);
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const x = a[i] ?? 0;
+    const y = b[i] ?? 0;
+    if (x > y) return true;
+    if (x < y) return false;
+  }
+  return false;
+};
+
 const App: React.FC = () => {
-  const [currentVersion, setCurrentVersion] = useState<string>('1.0.0'); // Versión actual de la app (cambiar según tu versión)
-  const [latestVersion, setLatestVersion] = useState<string>('');
-  const [downloadUrl, setDownloadUrl] = useState<string>('');
+  const [updateInfo, setUpdateInfo] = useState<{ version: string; url: string; changelog?: string } | null>(null);
   const [solicitudRecibo, setSolicitudRecibo] = useState<{ origen: string; destino: string } | null>(null);
 
   const detectarSolicitudRecibo = (data?: Record<string, string>, opts?: { onlyIfIdle?: boolean }) => {
@@ -109,7 +124,18 @@ const App: React.FC = () => {
     let unsubscribe: (() => void) | undefined;
 
     const setup = async () => {
-      // Verifica si hay actualizaciones disponibles
+      // Verifica si hay una versión más nueva publicada en version.json. Si la
+      // hay, se bloquea la app con un modal obligatorio hasta que actualice
+      // (ver render). Si falla la petición (sin internet, etc.) simplemente
+      // no se muestra nada y la app sigue funcionando con la versión actual.
+      try {
+        const { data } = await axios.get(VERSION_JSON_URL);
+        if (data?.version && esVersionMasNueva(data.version, CURRENT_APP_VERSION)) {
+          setUpdateInfo({ version: data.version, url: data.apk_url, changelog: data.changelog });
+        }
+      } catch (error) {
+        console.log('No se pudo verificar la versión disponible:', error);
+      }
 
       // Configuración de Firebase y Notifee
       if (Platform.OS === 'android' && Platform.Version >= 33) {
@@ -226,6 +252,31 @@ const App: React.FC = () => {
             </View>
           </View>
         </Modal>
+
+        <Modal
+          transparent
+          animationType="fade"
+          visible={!!updateInfo}
+          onRequestClose={() => {}} // Obligatorio: el botón atrás de Android no debe cerrarlo.
+        >
+          <View style={modalStyles.background}>
+            <View style={modalStyles.container}>
+              <Text style={modalStyles.title}>Nueva versión disponible</Text>
+              <Text style={modalStyles.updateBody}>
+                Hay una nueva versión ({updateInfo?.version}) de Hot Parts. Debes
+                actualizar para seguir usando la app.
+                {updateInfo?.changelog ? `\n\n${updateInfo.changelog}` : ''}
+              </Text>
+              <TouchableOpacity
+                style={modalStyles.updateButton}
+                onPress={() => updateInfo?.url && Linking.openURL(updateInfo.url)}
+                activeOpacity={0.7}
+              >
+                <Text style={modalStyles.receiveButtonText}>Actualizar ahora</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </NavigationContainer>
     </SafeAreaProvider>
   );
@@ -278,6 +329,18 @@ const modalStyles = StyleSheet.create({
   receiveButtonText: {
     color: 'white',
     fontWeight: 'bold',
+  },
+  updateBody: {
+    fontSize: 14,
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  updateButton: {
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    backgroundColor: '#0e5699',
   },
 });
 
