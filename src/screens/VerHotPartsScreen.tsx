@@ -3,26 +3,26 @@ import {
     View,
     Text,
     StyleSheet,
-    ImageBackground,
     TextInput,
     TouchableOpacity,
-    ScrollView,
+    FlatList,
     ActivityIndicator,
     RefreshControl,
 } from 'react-native';
 import axios from 'axios';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 
-const PAGE_SIZE = 20;
-const COLUMN_MIN_WIDTH = 130;
-
-// TODO: este endpoint todavía no existe en el servidor — hay que implementarlo
-// para que regrese el listado completo de HotParts (de todas las áreas).
+// Mismo endpoint/servidor que usa el resto de la app (ver LoginScreen, ReordenScreen, etc.)
 const ENDPOINT_TODOS_HOTPARTS = 'http://192.168.16.146:3002/api/hotparts/todos';
+const REFRESH_INTERVAL_MS = 20000;
+const CRITICO_HORAS = 48;
 
 type HotPartRow = Record<string, any>;
 
+// Réplica de la vista móvil de Hot Parts del proyecto Disparos
+// (Disparos/app/hotparts/movil/page.tsx), adaptada a React Native.
 const VerHotPartsScreen: React.FC = () => {
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
@@ -32,7 +32,20 @@ const VerHotPartsScreen: React.FC = () => {
     const [refreshing, setRefreshing] = useState<boolean>(false);
     const [errorMsg, setErrorMsg] = useState<string>('');
     const [searchText, setSearchText] = useState<string>('');
-    const [page, setPage] = useState<number>(1);
+    const [ocultarEnviados, setOcultarEnviados] = useState<boolean>(true);
+    const [expandedFolios, setExpandedFolios] = useState<Set<string>>(new Set());
+    const [currentTime, setCurrentTime] = useState<number>(Date.now());
+    const [blinkState, setBlinkState] = useState<boolean>(false);
+    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+    const toggleExpanded = (folio: string) => {
+        setExpandedFolios((prev) => {
+            const next = new Set(prev);
+            if (next.has(folio)) next.delete(folio);
+            else next.add(folio);
+            return next;
+        });
+    };
 
     const fetchHotParts = async (isRefresh: boolean = false) => {
         isRefresh ? setRefreshing(true) : setLoading(true);
@@ -41,6 +54,7 @@ const VerHotPartsScreen: React.FC = () => {
             const response = await axios.get(ENDPOINT_TODOS_HOTPARTS);
             const data: HotPartRow[] = Array.isArray(response.data) ? response.data : [];
             setHotParts(data);
+            setLastUpdated(new Date());
         } catch (error: any) {
             const mensaje =
                 error?.response?.data?.message ||
@@ -55,198 +69,335 @@ const VerHotPartsScreen: React.FC = () => {
 
     useEffect(() => {
         fetchHotParts();
+        const interval = setInterval(() => fetchHotParts(), REFRESH_INTERVAL_MS);
+        return () => clearInterval(interval);
     }, []);
 
-    // Cada vez que cambia la búsqueda, se regresa a la primera página.
+    // Reloj para el tiempo transcurrido y el parpadeo de las tarjetas críticas.
     useEffect(() => {
-        setPage(1);
-    }, [searchText]);
+        const timer = setInterval(() => {
+            setBlinkState((prev) => !prev);
+            setCurrentTime(Date.now());
+        }, 1000);
+        return () => clearInterval(timer);
+    }, []);
 
-    // Las columnas de la tabla se derivan de las llaves que regrese el
-    // servidor, para no depender de un esquema fijo (el endpoint todavía
-    // no existe, así que se adapta a lo que se implemente).
-    const columns = useMemo<string[]>(() => {
-        return hotParts.length > 0 ? Object.keys(hotParts[0]) : [];
-    }, [hotParts]);
+    const parseIngresoDate = (value: any): Date | null => {
+        if (!value) return null;
+        const valueStr = String(value);
+        const match = valueStr.match(/(\d{4})-(\d{2})-(\d{2})[\sT](\d{2}):(\d{2}):?(\d{2})?/);
+        if (match) {
+            const [, year, month, day, hours, minutes, seconds] = match;
+            const parsed = new Date(
+                parseInt(year, 10),
+                parseInt(month, 10) - 1,
+                parseInt(day, 10),
+                parseInt(hours, 10),
+                parseInt(minutes, 10),
+                parseInt(seconds || '0', 10)
+            );
+            return isNaN(parsed.getTime()) ? null : parsed;
+        }
+        const parsed = new Date(valueStr);
+        return isNaN(parsed.getTime()) ? null : parsed;
+    };
 
-    const filteredHotParts = useMemo<HotPartRow[]>(() => {
-        if (!searchText.trim()) return hotParts;
-        const texto = searchText.trim().toLowerCase();
-        return hotParts.filter((row) =>
-            columns.some((col) => String(row[col] ?? '').toLowerCase().includes(texto))
+    const formatIngresoDisplay = (value: any): string => {
+        const ingresoDate = parseIngresoDate(value);
+        if (!ingresoDate) return '';
+        const day = String(ingresoDate.getDate()).padStart(2, '0');
+        const month = String(ingresoDate.getMonth() + 1).padStart(2, '0');
+        const hours24 = ingresoDate.getHours();
+        const minutes = String(ingresoDate.getMinutes()).padStart(2, '0');
+        const amPm = hours24 >= 12 ? 'PM' : 'AM';
+        const hours12 = hours24 % 12 || 12;
+        return `${day}/${month} ${hours12}:${minutes} ${amPm}`;
+    };
+
+    const getElapsedInfo = (row: HotPartRow) => {
+        const estatus = String(row.Estatus || '').trim().toUpperCase();
+
+        if (estatus === 'ENVIADO') {
+            return { elapsed: '', isSent: true, isCritical: false };
+        }
+
+        const ingresoDate = parseIngresoDate(row['Hora Ingreso']);
+        if (!ingresoDate) {
+            return { elapsed: '0d 00:00', isSent: false, isCritical: false };
+        }
+
+        const diffMs = Math.max(0, currentTime - ingresoDate.getTime());
+        const totalMinutes = Math.floor(diffMs / 60000);
+        const days = Math.floor(totalMinutes / 1440);
+        const hours = Math.floor((totalMinutes % 1440) / 60);
+        const minutes = totalMinutes % 60;
+        const totalHours = diffMs / 3600000;
+
+        return {
+            elapsed: `${days}d ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`,
+            isSent: false,
+            isCritical: totalHours >= CRITICO_HORAS,
+        };
+    };
+
+    const passesSearch = (row: HotPartRow): boolean => {
+        const query = searchText.trim().toLowerCase();
+        if (!query) return true;
+        const searchableFields = [
+            row['Numero de Parte'],
+            row.Secuencia,
+            row.Folio,
+            row['Orden de Compra'],
+            row.Descripcion,
+        ];
+        return searchableFields.some((field) => String(field ?? '').toLowerCase().includes(query));
+    };
+
+    const visibleData = useMemo(() => {
+        return (ocultarEnviados
+            ? hotParts.filter((row) => String(row.Estatus ?? '').toUpperCase() !== 'ENVIADO')
+            : hotParts
+        ).filter(passesSearch);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hotParts, ocultarEnviados, searchText]);
+
+    const renderItem = ({ item: row, index: idx }: { item: HotPartRow; index: number }) => {
+        const elapsedInfo = getElapsedInfo(row);
+        let cardStyle: any[] = [styles.card];
+        if (elapsedInfo.isSent) {
+            cardStyle = [styles.card, styles.cardSent];
+        } else if (elapsedInfo.isCritical) {
+            cardStyle = [styles.card, blinkState ? styles.cardCriticalBlink : styles.cardCritical];
+        }
+
+        const rowKey = String(row.Folio || idx);
+        const isExpanded = expandedFolios.has(rowKey);
+
+        return (
+            <View style={cardStyle}>
+                <TouchableOpacity style={styles.cardHeader} onPress={() => toggleExpanded(rowKey)} activeOpacity={0.7}>
+                    <Text style={styles.cardNumeroParte} numberOfLines={1}>
+                        {row['Numero de Parte'] || ''}
+                    </Text>
+                    <Text style={styles.cardEstatus}>{row.Estatus}</Text>
+                    <Text style={styles.cardChevron}>{isExpanded ? '▲' : '▼'}</Text>
+                </TouchableOpacity>
+
+                {isExpanded && (
+                    <View style={styles.cardBody}>
+                        <DetailRow label="Folio" value={row.Folio} />
+                        <DetailRow label="Secuencia" value={row.Secuencia} />
+                        <DetailRow label="PO" value={row['Orden de Compra']} />
+                        {!!row.Descripcion && <DetailRow label="Descripcion" value={row.Descripcion} />}
+                        <DetailRow label="Cantidad" value={row['Cantidad Total']} />
+                        {!!row['Comentarios CMX'] && <DetailRow label="Comentarios CMX" value={row['Comentarios CMX']} />}
+                        {!!row['Comentarios TMP'] && <DetailRow label="Comentarios TMP" value={row['Comentarios TMP']} />}
+                        <DetailRow label="Solicitado por" value={row['Solicitado por']} />
+                        <DetailRow label="Planta" value={row.Planta} />
+                        <DetailRow label="Ingreso" value={formatIngresoDisplay(row['Hora Ingreso'])} />
+                        {!elapsedInfo.isSent && (
+                            <DetailRow label="Transcurrido" value={elapsedInfo.elapsed} critical={elapsedInfo.isCritical} />
+                        )}
+                    </View>
+                )}
+            </View>
         );
-    }, [hotParts, columns, searchText]);
-
-    const totalPages = Math.max(1, Math.ceil(filteredHotParts.length / PAGE_SIZE));
-    const currentPage = Math.min(page, totalPages);
-    const pageItems = filteredHotParts.slice(
-        (currentPage - 1) * PAGE_SIZE,
-        currentPage * PAGE_SIZE
-    );
+    };
 
     return (
-        <ImageBackground
-            source={require('./assets/fondo2.jpg')}
-            style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
-        >
-            <View style={styles.header}>
+        <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+            <Svg height="100%" width="100%" style={StyleSheet.absoluteFill}>
+                <Defs>
+                    <LinearGradient id="fondo" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <Stop offset="0%" stopColor="#ffffff" />
+                        <Stop offset="60%" stopColor="#ffffff" />
+                        <Stop offset="100%" stopColor="#ffffff" />
+                    </LinearGradient>
+                </Defs>
+                <Rect x="0" y="0" width="100%" height="100%" fill="url(#fondo)" />
+            </Svg>
+
+            <View style={[styles.topBar, { paddingTop: insets.top ? 4 : 12 }]}>
                 <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.7} style={styles.backButton}>
                     <Text style={styles.backButtonText}>{'‹'} Volver</Text>
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Todos los HotParts</Text>
+                <Text style={styles.title}>🔥 Hot Parts</Text>
                 <View style={styles.backButton} />
             </View>
 
-            <View style={styles.searchWrapper}>
-                <TextInput
-                    style={styles.searchInput}
-                    placeholder="Buscar..."
-                    placeholderTextColor="#a0a0a0"
-                    value={searchText}
-                    onChangeText={setSearchText}
-                />
+            <TextInput
+                style={styles.searchInput}
+                placeholder="Buscar por numero de parte, secuencia, PO..."
+                placeholderTextColor="rgba(0, 0, 0, 0.5)"
+                value={searchText}
+                onChangeText={setSearchText}
+            />
+
+            <View style={styles.controls}>
+                <TouchableOpacity
+                    style={styles.filterCheckbox}
+                    onPress={() => setOcultarEnviados((prev) => !prev)}
+                    activeOpacity={0.7}
+                >
+                    <View style={[styles.checkboxBox, ocultarEnviados && styles.checkboxBoxChecked]}>
+                        {ocultarEnviados && <Text style={styles.checkboxMark}>✓</Text>}
+                    </View>
+                    <Text style={styles.filterCheckboxText}>Ocultar Enviados</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={[styles.refreshButton, loading && styles.refreshButtonDisabled]}
+                    onPress={() => fetchHotParts()}
+                    disabled={loading}
+                    activeOpacity={0.7}
+                >
+                    <Text style={styles.refreshButtonText}>{loading ? 'Actualizando...' : 'Actualizar'}</Text>
+                </TouchableOpacity>
             </View>
 
-            {loading ? (
-                <View style={styles.centered}>
-                    <ActivityIndicator size="large" color="#116bbf" />
-                    <Text style={styles.loadingText}>Cargando HotParts...</Text>
-                </View>
-            ) : errorMsg ? (
+            {lastUpdated && (
+                <Text style={styles.lastUpdated}>
+                    Última actualización: {lastUpdated.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </Text>
+            )}
+
+            {errorMsg ? (
                 <View style={styles.centered}>
                     <Text style={styles.errorText}>{errorMsg}</Text>
                     <TouchableOpacity style={styles.retryButton} onPress={() => fetchHotParts()} activeOpacity={0.7}>
                         <Text style={styles.retryButtonText}>Reintentar</Text>
                     </TouchableOpacity>
                 </View>
-            ) : columns.length === 0 ? (
+            ) : loading && hotParts.length === 0 ? (
                 <View style={styles.centered}>
-                    <Text style={styles.emptyText}>No hay HotParts para mostrar.</Text>
-                    <TouchableOpacity style={styles.retryButton} onPress={() => fetchHotParts()} activeOpacity={0.7}>
-                        <Text style={styles.retryButtonText}>Recargar</Text>
-                    </TouchableOpacity>
+                    <ActivityIndicator size="large" color="#63b3ed" />
                 </View>
             ) : (
-                <>
-                    <View style={styles.tableSection}>
-                        <ScrollView
-                            contentContainerStyle={styles.verticalScrollContent}
-                            refreshControl={
-                                <RefreshControl
-                                    refreshing={refreshing}
-                                    onRefresh={() => fetchHotParts(true)}
-                                    colors={['#116bbf']}
-                                    tintColor="#116bbf"
-                                />
-                            }
-                        >
-                            <ScrollView horizontal showsHorizontalScrollIndicator>
-                                <View>
-                                    <View style={styles.tableRow}>
-                                        {columns.map((col) => (
-                                            <View key={col} style={styles.tableHeaderCell}>
-                                                <Text style={styles.tableHeaderText} numberOfLines={2}>
-                                                    {col}
-                                                </Text>
-                                            </View>
-                                        ))}
-                                    </View>
-
-                                    {pageItems.length === 0 ? (
-                                        <View style={styles.emptyRow}>
-                                            <Text style={styles.emptyRowText}>
-                                                Sin resultados para "{searchText}".
-                                            </Text>
-                                        </View>
-                                    ) : (
-                                        pageItems.map((row, idx) => (
-                                            <View
-                                                key={idx}
-                                                style={[styles.tableRow, idx % 2 === 1 && styles.tableRowAlt]}
-                                            >
-                                                {columns.map((col) => (
-                                                    <View key={col} style={styles.tableCell}>
-                                                        <Text style={styles.tableCellText} numberOfLines={2}>
-                                                            {row[col] === null || row[col] === undefined
-                                                                ? '-'
-                                                                : String(row[col])}
-                                                        </Text>
-                                                    </View>
-                                                ))}
-                                            </View>
-                                        ))
-                                    )}
-                                </View>
-                            </ScrollView>
-                        </ScrollView>
-                    </View>
-
-                    <View style={styles.paginationBar}>
-                        <TouchableOpacity
-                            style={[styles.pageButton, currentPage === 1 && styles.pageButtonDisabled]}
-                            onPress={() => setPage((p) => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.pageButtonText}>‹ Anterior</Text>
-                        </TouchableOpacity>
-
-                        <Text style={styles.pageIndicatorText}>
-                            Página {currentPage} de {totalPages} ({filteredHotParts.length} registros)
-                        </Text>
-
-                        <TouchableOpacity
-                            style={[styles.pageButton, currentPage === totalPages && styles.pageButtonDisabled]}
-                            onPress={() => setPage((p) => Math.min(totalPages, p + 1))}
-                            disabled={currentPage === totalPages}
-                            activeOpacity={0.7}
-                        >
-                            <Text style={styles.pageButtonText}>Siguiente ›</Text>
-                        </TouchableOpacity>
-                    </View>
-                </>
+                <FlatList
+                    data={visibleData}
+                    keyExtractor={(row, idx) => String(row.Folio || idx)}
+                    renderItem={renderItem}
+                    contentContainerStyle={styles.cardList}
+                    refreshControl={
+                        <RefreshControl refreshing={refreshing} onRefresh={() => fetchHotParts(true)} tintColor="#63b3ed" colors={['#63b3ed']} />
+                    }
+                    ListEmptyComponent={
+                        <Text style={styles.emptyText}>No hay Hot Parts disponibles.</Text>
+                    }
+                />
             )}
-        </ImageBackground>
+        </View>
     );
 };
+
+const DetailRow: React.FC<{ label: string; value: any; critical?: boolean }> = ({ label, value, critical }) => (
+    <View style={styles.cardRow}>
+        <Text style={styles.cardLabel}>{label}</Text>
+        <Text style={[styles.cardValue, critical && styles.cardValueCritical]}>
+            {value === null || value === undefined || value === '' ? '-' : String(value)}
+        </Text>
+    </View>
+);
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
-    header: {
+    topBar: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingBottom: 10,
     },
     backButton: {
         minWidth: 70,
     },
     backButtonText: {
-        color: '#0d3f73',
+        color: '#000000',
         fontSize: 15,
         fontWeight: '600',
     },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#0d3f73',
-    },
-    searchWrapper: {
-        paddingHorizontal: 16,
-        marginBottom: 10,
+    title: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#020202',
+        letterSpacing: 0.5,
     },
     searchInput: {
-        backgroundColor: 'white',
-        borderRadius: 10,
+        marginHorizontal: 16,
+        borderRadius: 20,
         borderWidth: 1,
-        borderColor: '#e2e2e2',
-        paddingHorizontal: 14,
-        height: 44,
-        color: 'black',
+        borderColor: 'rgba(0, 0, 0, 0.2)',
+        backgroundColor: 'rgba(5, 5, 5, 0.08)',
+        color: '#000000',
         fontSize: 14,
+        paddingHorizontal: 14,
+        height: 42,
+    },
+    controls: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 10,
+        marginHorizontal: 16,
+        marginTop: 10,
+    },
+    filterCheckbox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        //backgroundColor: 'rgba(3, 3, 3, 0.43)',
+        borderWidth: 1,
+        borderColor: 'rgba(2, 2, 2, 0.57)',
+        borderRadius: 20,
+        paddingVertical: 8,
+        paddingHorizontal: 14,
+        color: '#000000',
+    },
+    checkboxBox: {
+        width: 16,
+        height: 16,
+        borderRadius: 4,
+        borderWidth: 1,
+        borderColor: 'rgb(5, 5, 5)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#000000',
+    },
+    checkboxBoxChecked: {
+        backgroundColor: '#003cff',
+        borderColor: '#003cff',
+    },
+    checkboxMark: {
+        color: '#0f172a',
+        fontSize: 11,
+        fontWeight: 'bold',
+    },
+    filterCheckboxText: {
+        fontSize: 13,
+        color: 'rgba(0, 0, 0, 0.85)',
+    },
+    refreshButton: {
+        backgroundColor: '#2563eb',
+        paddingVertical: 10,
+        paddingHorizontal: 18,
+        borderRadius: 20,
+    },
+    refreshButtonDisabled: {
+        opacity: 0.6,
+    },
+    refreshButtonText: {
+        color: '#ffffff',
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    lastUpdated: {
+        color: 'rgba(0, 0, 0, 0.55)',
+        fontSize: 11,
+        textAlign: 'center',
+        marginTop: 8,
+        marginBottom: 4,
     },
     centered: {
         flex: 1,
@@ -254,25 +405,14 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         paddingHorizontal: 24,
     },
-    loadingText: {
-        marginTop: 12,
-        color: '#0d3f73',
-        fontSize: 14,
-    },
     errorText: {
-        color: '#d33',
-        fontSize: 14,
-        textAlign: 'center',
-        marginBottom: 16,
-    },
-    emptyText: {
-        color: '#3d3d3d',
+        color: '#fca5a5',
         fontSize: 14,
         textAlign: 'center',
         marginBottom: 16,
     },
     retryButton: {
-        backgroundColor: '#116bbf',
+        backgroundColor: '#2563eb',
         paddingVertical: 10,
         paddingHorizontal: 24,
         borderRadius: 10,
@@ -282,89 +422,95 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: 'bold',
     },
-    tableSection: {
-        flex: 1,
-        marginHorizontal: 16,
-        marginBottom: 10,
-        backgroundColor: 'white',
+    emptyText: {
+        color: 'rgba(54, 54, 54, 0.7)',
+        textAlign: 'center',
+        paddingVertical: 24,
+        fontSize: 14,
+    },
+    cardList: {
+        paddingHorizontal: 16,
+        paddingTop: 10,
+        paddingBottom: 24,
+        gap: 10,
+    },
+    card: {
+        backgroundColor: '#ffffff',
         borderRadius: 12,
-        overflow: 'hidden',
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        marginBottom: 10,
+        borderLeftWidth: 6,
+        borderLeftColor: '#046bfc',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
+        shadowOpacity: 0.25,
         shadowRadius: 8,
         elevation: 4,
     },
-    verticalScrollContent: {
-        flexGrow: 1,
+    cardSent: {
+        borderLeftColor: '#16a34a',
+        backgroundColor: '#f0fdf4',
     },
-    tableRow: {
-        flexDirection: 'row',
-        borderBottomWidth: 1,
-        borderBottomColor: '#eee',
+    cardCritical: {
+        borderLeftColor: '#dc2626',
+        backgroundColor: '#fef2f2',
     },
-    tableRowAlt: {
-        backgroundColor: '#f7f9fc',
+    cardCriticalBlink: {
+        borderLeftColor: '#dc2626',
+        backgroundColor: '#ffffff',
     },
-    tableHeaderCell: {
-        minWidth: COLUMN_MIN_WIDTH,
-        paddingVertical: 10,
-        paddingHorizontal: 10,
-        backgroundColor: '#0d3f73',
-        justifyContent: 'center',
-    },
-    tableHeaderText: {
-        color: 'white',
-        fontSize: 12,
-        fontWeight: 'bold',
-    },
-    tableCell: {
-        minWidth: COLUMN_MIN_WIDTH,
-        paddingVertical: 10,
-        paddingHorizontal: 10,
-        justifyContent: 'center',
-    },
-    tableCellText: {
-        color: '#333',
-        fontSize: 12,
-    },
-    emptyRow: {
-        padding: 20,
-        alignItems: 'center',
-    },
-    emptyRowText: {
-        color: '#777',
-        fontSize: 13,
-    },
-    paginationBar: {
+    cardHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingBottom: 6,
-        paddingTop: 4,
+        gap: 10,
     },
-    pageButton: {
-        backgroundColor: '#116bbf',
-        paddingVertical: 8,
-        paddingHorizontal: 14,
-        borderRadius: 8,
+    cardNumeroParte: {
+        fontWeight: '700',
+        fontSize: 15,
+        color: '#1e293b',
+        flex: 1,
     },
-    pageButtonDisabled: {
-        backgroundColor: '#b7c9d9',
-    },
-    pageButtonText: {
-        color: 'white',
+    cardEstatus: {
         fontSize: 12,
-        fontWeight: 'bold',
-    },
-    pageIndicatorText: {
-        color: '#0d3f73',
-        fontSize: 11,
         fontWeight: '600',
+        color: '#1e40af',
+        backgroundColor: '#dbeafe',
+        borderRadius: 10,
+        paddingVertical: 3,
+        paddingHorizontal: 10,
+    },
+    cardChevron: {
+        color: '#64748b',
+        fontSize: 12,
+    },
+    cardBody: {
+        marginTop: 8,
+        paddingTop: 8,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(0,0,0,0.08)',
+        gap: 5,
+    },
+    cardRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: 10,
+    },
+    cardLabel: {
+        color: '#64748b',
+        fontWeight: '600',
+        fontSize: 13,
+    },
+    cardValue: {
+        color: '#1e293b',
+        textAlign: 'right',
+        fontSize: 13,
         flexShrink: 1,
-        textAlign: 'center',
-        marginHorizontal: 6,
+    },
+    cardValueCritical: {
+        color: '#dc2626',
+        fontWeight: '700',
     },
 });
 

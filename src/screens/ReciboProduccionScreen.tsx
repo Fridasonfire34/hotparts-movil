@@ -47,7 +47,11 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
             const data = (response.data.data ?? []).map(mapListadoItem);
             setHotParts(data);
             setFilteredHotParts(data);
-            setSelectedItems(data);
+            // No se preselecciona nada: esta lista trae TODO lo pendiente para el
+            // departamento (de cualquier usuario que haya entregado), así que el
+            // usuario debe marcar a mano justo lo que tiene físicamente enfrente.
+            // Evita recibir por error piezas de una entrega de otra persona.
+            setSelectedItems([]);
         } catch (error) {
             let errorMessage = '';
 
