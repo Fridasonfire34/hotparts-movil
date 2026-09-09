@@ -1,5 +1,5 @@
 {
-  "version": "1.3",
-  "apk_url": "https://github.com/Fridasonfire34/hotparts-movil/releases/download/1.3/hotparts.apk",
-  "changelog": "Aviso obligatorio de actualizacion: la app ahora revisa si hay una version mas nueva al iniciar."
+  "version": "1.4",
+  "apk_url": "https://github.com/Fridasonfire34/hotparts-movil/releases/download/1.4/hotparts.apk",
+  "changelog": "Corrige la IP del servidor, agrega la vista de Todos los Hot Parts y evita recibir por error piezas de otra entrega en Recibo Produccion/Calidad."
 }
