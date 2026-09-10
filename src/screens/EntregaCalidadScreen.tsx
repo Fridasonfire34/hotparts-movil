@@ -18,7 +18,6 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import {Camera} from 'react-native-camera-kit';
-import QRCode from 'react-native-qrcode-svg';
 import axios from 'axios';
 import {RouteProp} from '@react-navigation/native';
 import {RootStackParamList} from './App';
@@ -608,7 +607,11 @@ const EntregaCalidadScreen: React.FC<Props> = ({route}) => {
                         El Hot Part:{' '}
                         {selectedItems[currentItemIndex]['Numero de Parte']}{' '}
                         contiene{' '}
-                        {selectedItems[currentItemIndex]['Cantidad Faltante']}{' '}
+                        {
+                          selectedItems[currentItemIndex][
+                            'Cantidad Faltante de Entregar'
+                          ]
+                        }{' '}
                         piezas. ¿Cuántas se van a entregar?
                       </Text>
 
@@ -663,21 +666,6 @@ const EntregaCalidadScreen: React.FC<Props> = ({route}) => {
                 </TouchableOpacity>
 
                 <Text style={styles.modalTitle}>Hot Parts a entregar</Text>
-
-                <View style={styles.qrContainer}>
-                  <QRCode
-                    value={JSON.stringify({
-                      usuarioEntrega: nomina,
-                      items: qrItemsRef.current,
-                    })}
-                    size={150}
-                  />
-                </View>
-
-                <Text style={styles.qrHelperText}>
-                  Muestra este código QR a la persona de Calidad para que
-                  identifique lo que estás entregando.
-                </Text>
 
                 <Text style={styles.modalTitle}>
                   Ingresa el código de Recibo
@@ -926,20 +914,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     textAlign: 'center',
   },
-  qrContainer: {
-    alignItems: 'center',
-    marginVertical: 10,
-  },
-  qrHelperText: {
-    fontSize: 13,
-    color: '#555',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
   buttonsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 1,
+    marginTop: 15,
   },
   modalButton: {
     flex: 1,

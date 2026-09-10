@@ -608,7 +608,11 @@ const EntregaProduccionScreen: React.FC<Props> = ({route}) => {
                         El Hot Part:{' '}
                         {selectedItems[currentItemIndex]['Numero de Parte']}{' '}
                         contiene{' '}
-                        {selectedItems[currentItemIndex]['Cantidad Faltante']}{' '}
+                        {
+                          selectedItems[currentItemIndex][
+                            'Cantidad Faltante por Entregar'
+                          ]
+                        }{' '}
                         piezas. ¿Cuántas se van a entregar?
                       </Text>
 

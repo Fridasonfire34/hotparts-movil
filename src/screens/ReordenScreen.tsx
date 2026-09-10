@@ -5,6 +5,14 @@ import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from './App';
 import { useNavigation } from '@react-navigation/native';
 
+// Servidor de la app de Reordenes (no hotparts-server): de ahi salen las
+// listas de Defecto/Causa/Maquina, las mismas que usa Calidad en la web.
+// Corre en esta misma PC de la base de datos (.146); en .146 solo hay una
+// copia vieja/de prueba con otra base de datos (confirmado 2026-09-09).
+const REORDENES_API_URL = 'http://192.168.16.224:4000';
+
+type PickerField = 'defecto' | 'causa' | 'maquina' | 'area' | null;
+
 type ReordenScreenRouteProp = RouteProp<RootStackParamList, 'ReordenScreen'>;
 
 interface Props {
@@ -43,6 +51,23 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
     const [mostrarAlertaSeleccionUnica, setMostrarAlertaSeleccionUnica] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
+    // Defecto/Causa/Maquina: Reordenes los pide como obligatorios en su
+    // formulario de captura, asi que se piden aqui tambien y se mandan con
+    // la solicitud para que Calidad no tenga que volver a buscarlos.
+    const [isDefectoModalVisible, setIsDefectoModalVisible] = useState(false);
+    const [defecto, setDefecto] = useState('');
+    const [causa, setCausa] = useState('');
+    const [maquina, setMaquina] = useState('');
+    // Area de planta (formulario Nueva Reorden), distinta del "area" de arriba
+    // (departamento de Hot Parts: Calidad/Produccion).
+    const [areaDefecto, setAreaDefecto] = useState('');
+    const [defectoOptions, setDefectoOptions] = useState<string[]>([]);
+    const [causaOptions, setCausaOptions] = useState<string[]>([]);
+    const [maquinaOptions, setMaquinaOptions] = useState<string[]>([]);
+    const [areaDefectoOptions, setAreaDefectoOptions] = useState<string[]>([]);
+    const [loadingCausas, setLoadingCausas] = useState(false);
+    const [activePicker, setActivePicker] = useState<PickerField>(null);
+
 
     useEffect(() => {
         const fetchHotParts = async () => {
@@ -80,6 +105,46 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
 
         return () => clearTimeout(timer);
     }, []);
+
+    useEffect(() => {
+        const fetchOpciones = async () => {
+            try {
+                const [defectosRes, maquinasRes, areasRes] = await Promise.all([
+                    axios.get(`${REORDENES_API_URL}/api/defectos`),
+                    axios.get(`${REORDENES_API_URL}/api/maquinas`),
+                    axios.get(`${REORDENES_API_URL}/api/areas`),
+                ]);
+                setDefectoOptions(Array.isArray(defectosRes.data?.defectos) ? defectosRes.data.defectos : []);
+                setMaquinaOptions(Array.isArray(maquinasRes.data?.maquinas) ? maquinasRes.data.maquinas : []);
+                setAreaDefectoOptions(Array.isArray(areasRes.data?.areas) ? areasRes.data.areas : []);
+            } catch (error) {
+                console.error('Error al obtener defectos/maquinas/areas de Reordenes:', error);
+            }
+        };
+
+        fetchOpciones();
+    }, []);
+
+    const handleDefectoChange = async (nuevoDefecto: string) => {
+        setDefecto(nuevoDefecto);
+        setCausa('');
+        setCausaOptions([]);
+        setActivePicker(null);
+
+        if (!nuevoDefecto.trim()) return;
+
+        setLoadingCausas(true);
+        try {
+            const response = await axios.get(`${REORDENES_API_URL}/api/causas`, {
+                params: { defecto: nuevoDefecto },
+            });
+            setCausaOptions(Array.isArray(response.data?.causas) ? response.data.causas : []);
+        } catch (error) {
+            console.error('Error al obtener causas de Reordenes:', error);
+        } finally {
+            setLoadingCausas(false);
+        }
+    };
 
     const onRefresh = async () => {
         setRefreshing(true);
@@ -128,6 +193,24 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
         }
 
         const item = selectedItems[0];
+
+        // Evita mandar una solicitud duplicada si ya hay una pendiente para
+        // este folio (p. ej. otra persona lo reordeno casi al mismo tiempo,
+        // antes de que se ocultara del listado a entregar).
+        try {
+            const existeResponse = await axios.get(`${REORDENES_API_URL}/api/hotparts-solicitudes/existe`, {
+                params: { folio: item.Folio },
+            });
+            if (existeResponse.data?.existe) {
+                Alert.alert('Aviso', 'Ya existe una solicitud de reorden pendiente para esta pieza.');
+                return;
+            }
+        } catch (error) {
+            console.error('Error al verificar solicitud de reorden existente:', error);
+            // Mejor esfuerzo: si la verificacion falla (ej. sin red momentanea),
+            // no se bloquea todo el flujo de reorden por eso.
+        }
+
         const cantidadDisponible = getCantidadDisponible(item);
 
         if (cantidadDisponible === 1) {
@@ -142,7 +225,9 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                 });
 
                 if (response.data.success) {
-                    setShowComentarioPrompt(true);
+                    // Ya que se sabe la cantidad, se piden los detalles del
+                    // defecto (Reordenes los pide como obligatorios).
+                    setIsDefectoModalVisible(true);
                 } else {
                     Alert.alert('Error', response.data.message);
                 }
@@ -156,6 +241,34 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
         // Cantidad disponible mayor a 1: preguntar cuantas piezas se van a reordenar.
         setCurrentItemIndex(0);
         setIsQuantityModalVisible(true);
+    };
+
+    const handleConfirmarDefecto = async () => {
+        if (!defecto.trim() || !causa.trim() || !maquina.trim() || !areaDefecto.trim()) {
+            Alert.alert('Aviso', 'Selecciona Defecto, Causa, Maquina y Area para continuar.');
+            return;
+        }
+
+        try {
+            const folios = selectedItems.map((item) => item.Folio);
+            const response = await axios.post('http://192.168.16.146:3002/api/hotparts/detallesReorden', {
+                folios,
+                defecto,
+                causa,
+                maquina,
+                areaDefecto,
+            });
+
+            if (response.data.success) {
+                setIsDefectoModalVisible(false);
+                setShowComentarioPrompt(true);
+            } else {
+                Alert.alert('Error', response.data.message);
+            }
+        } catch (error) {
+            console.error('Error al guardar los detalles del defecto:', error);
+            Alert.alert('Error', 'Hubo un error al guardar los detalles del defecto.');
+        }
     };
     const handleQuantityConfirm = async () => {
         const item = selectedItems[currentItemIndex];
@@ -189,8 +302,10 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
             if (currentItemIndex + 1 < selectedItems.length) {
                 setCurrentItemIndex(currentItemIndex + 1);
             } else {
+                // Ya que se sabe la cantidad, se piden los detalles del
+                // defecto (Reordenes los pide como obligatorios).
                 setIsQuantityModalVisible(false);
-                setShowComentarioPrompt(true);
+                setIsDefectoModalVisible(true);
             }
 
         } catch (error) {
@@ -240,6 +355,10 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                             setFilteredHotParts(updateResponse.data);
                             setSelectedItems([]);
                             setComentario('');
+                            setDefecto('');
+                            setCausa('');
+                            setMaquina('');
+                            setAreaDefecto('');
                         }
                     }
                 ]);
@@ -304,6 +423,10 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                                 setHotParts(updateResponse.data);
                                 setFilteredHotParts(updateResponse.data);
                                 setSelectedItems([]);
+                                setDefecto('');
+                                setCausa('');
+                                setMaquina('');
+                                setAreaDefecto('');
                             }
                         }
                     ]
@@ -435,6 +558,106 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                         </TouchableOpacity>
                         </View>
                     )}
+
+                    <Modal
+                        transparent={true}
+                        animationType="slide"
+                        visible={isDefectoModalVisible}
+                        onRequestClose={() => setIsDefectoModalVisible(false)}
+                    >
+                        <View style={styles.modalBackground}>
+                            <View style={styles.modalContainer}>
+                                <Text style={styles.modalTitle}>Detalles del Defecto</Text>
+
+                                <TouchableOpacity style={styles.pickerField} onPress={() => setActivePicker('defecto')}>
+                                    <Text style={styles.pickerFieldLabel}>Defecto</Text>
+                                    <Text style={styles.pickerFieldValue}>{defecto || 'Selecciona un defecto'}</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[styles.pickerField, !defecto && styles.pickerFieldDisabled]}
+                                    onPress={() => defecto && setActivePicker('causa')}
+                                    disabled={!defecto}
+                                >
+                                    <Text style={styles.pickerFieldLabel}>Causa</Text>
+                                    <Text style={styles.pickerFieldValue}>
+                                        {!defecto
+                                            ? 'Selecciona primero un defecto'
+                                            : loadingCausas
+                                                ? 'Cargando causas...'
+                                                : (causa || 'Selecciona una causa')}
+                                    </Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity style={styles.pickerField} onPress={() => setActivePicker('maquina')}>
+                                    <Text style={styles.pickerFieldLabel}>Maquina</Text>
+                                    <Text style={styles.pickerFieldValue}>{maquina || 'Selecciona una maquina'}</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity style={styles.pickerField} onPress={() => setActivePicker('area')}>
+                                    <Text style={styles.pickerFieldLabel}>Area</Text>
+                                    <Text style={styles.pickerFieldValue}>{areaDefecto || 'Selecciona un area'}</Text>
+                                </TouchableOpacity>
+
+                                <View style={styles.buttonsContainer}>
+                                    <TouchableOpacity style={styles.confirmButton} onPress={handleConfirmarDefecto}>
+                                        <Text style={styles.buttonText}>Continuar</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={styles.cancelButton}
+                                        onPress={() => setIsDefectoModalVisible(false)}
+                                    >
+                                        <Text style={styles.buttonText}>Cancelar</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        </View>
+                    </Modal>
+
+                    <Modal
+                        transparent={true}
+                        animationType="fade"
+                        visible={activePicker !== null}
+                        onRequestClose={() => setActivePicker(null)}
+                    >
+                        <View style={styles.modalBackground}>
+                            <View style={styles.modalContainer}>
+                                <Text style={styles.modalTitle}>
+                                    {activePicker === 'defecto' ? 'Selecciona un Defecto' : activePicker === 'causa' ? 'Selecciona una Causa' : activePicker === 'maquina' ? 'Selecciona una Maquina' : 'Selecciona un Area'}
+                                </Text>
+                                <FlatList
+                                    style={styles.pickerList}
+                                    data={activePicker === 'defecto' ? defectoOptions : activePicker === 'causa' ? causaOptions : activePicker === 'maquina' ? maquinaOptions : areaDefectoOptions}
+                                    keyExtractor={(opcion) => opcion}
+                                    ListEmptyComponent={<Text style={styles.NoResult}>Sin opciones disponibles</Text>}
+                                    renderItem={({ item: opcion }) => (
+                                        <TouchableOpacity
+                                            style={styles.pickerOption}
+                                            onPress={() => {
+                                                if (activePicker === 'defecto') {
+                                                    handleDefectoChange(opcion);
+                                                } else if (activePicker === 'causa') {
+                                                    setCausa(opcion);
+                                                    setActivePicker(null);
+                                                } else if (activePicker === 'maquina') {
+                                                    setMaquina(opcion);
+                                                    setActivePicker(null);
+                                                } else if (activePicker === 'area') {
+                                                    setAreaDefecto(opcion);
+                                                    setActivePicker(null);
+                                                }
+                                            }}
+                                        >
+                                            <Text style={styles.pickerOptionText}>{opcion}</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                />
+                                <TouchableOpacity style={styles.cancelButton} onPress={() => setActivePicker(null)}>
+                                    <Text style={styles.buttonText}>Cerrar</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </Modal>
 
                     <Modal
                         transparent={true}
@@ -783,6 +1006,44 @@ const styles = StyleSheet.create({
     cardSecuencia: {
         fontSize: 12,
         color: '#555',
+    },
+    pickerField: {
+        width: '100%',
+        borderWidth: 1,
+        borderColor: '#c4c4c4',
+        backgroundColor: '#f7f7f7',
+        borderRadius: 6,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        marginBottom: 10,
+    },
+    pickerFieldDisabled: {
+        opacity: 0.5,
+    },
+    pickerFieldLabel: {
+        fontSize: 12,
+        color: '#666',
+        fontWeight: 'bold',
+    },
+    pickerFieldValue: {
+        fontSize: 15,
+        color: '#000',
+        marginTop: 2,
+    },
+    pickerList: {
+        width: '100%',
+        maxHeight: 300,
+    },
+    pickerOption: {
+        paddingVertical: 12,
+        paddingHorizontal: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+        width: '100%',
+    },
+    pickerOptionText: {
+        fontSize: 15,
+        color: '#000',
     },
 });
 export default ReordenScreen;

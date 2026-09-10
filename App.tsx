@@ -41,7 +41,7 @@ const VERSION_JSON_URL = 'https://hot-parts.web.app/version.json'; // La URL de 
 
 // Versión instalada de la app. Debe actualizarse a mano en cada release para
 // que coincida con el "version" que se publica en public/version.json.
-const CURRENT_APP_VERSION = '1.5';
+const CURRENT_APP_VERSION = '1.6';
 
 // Compara versiones tipo "1.0.10" vs "1.0.7" numéricamente (no como texto).
 const esVersionMasNueva = (remota: string, actual: string) => {

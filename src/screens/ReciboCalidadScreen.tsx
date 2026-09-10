@@ -303,10 +303,13 @@ const ReciboCalidadScreen: React.FC<Props> = ({route}) => {
 
         if (response.data.success) {
           console.log('Filas con cantidad 1 procesadas correctamente.');
-          setFoliosCantidadUno(folios); // Guardamos esos folios
-          await generarCodigoRecibo();
+          // Se guardan para incluirlas en el código de recibo hasta el
+          // final (en generarCodigoRecibo), no se muestra el QR todavía:
+          // primero hay que preguntar las cantidades de las piezas >1.
+          setFoliosCantidadUno(folios);
         } else {
           Alert.alert('Error', response.data.message);
+          return;
         }
       } catch (error) {
         console.error('Error al procesar las filas con cantidad 1:', error);
@@ -314,15 +317,19 @@ const ReciboCalidadScreen: React.FC<Props> = ({route}) => {
           'Error',
           'Hubo un error al procesar las filas con cantidad 1.',
         );
+        return;
       }
     }
 
     if (rowsWithQuantityGreaterThanOne.length > 0) {
+      // Primero se pregunta la cantidad de cada pieza; el QR se genera y
+      // se muestra hasta el final (ver handleQuantityConfirm).
       setSelectedItems(rowsWithQuantityGreaterThanOne);
       setCurrentItemIndex(0);
       setIsQuantityModalVisible(true);
     } else {
-      setIsModalVisible(true);
+      // No hay piezas que requieran cantidad: ya se puede generar el código.
+      await generarCodigoRecibo();
     }
   };
 
@@ -354,21 +361,22 @@ const ReciboCalidadScreen: React.FC<Props> = ({route}) => {
         },
       );
 
-      if (response.data.success) {
-        console.log(
-          `Cantidad registrada correctamente para Hot Part ${item['Numero de Parte']}`,
-        );
-
-        await generarCodigoRecibo(); // Esperamos a que termine de ejecutarse
-      } else {
+      if (!response.data.success) {
         Alert.alert('Error', response.data.message);
+        return;
       }
 
+      console.log(
+        `Cantidad registrada correctamente para Hot Part ${item['Numero de Parte']}`,
+      );
+
       if (currentItemIndex + 1 < selectedItems.length) {
+        // Todavía faltan piezas por preguntar: no se genera el QR aún.
         setCurrentItemIndex(currentItemIndex + 1);
       } else {
+        // Ya se contestaron todas las cantidades: hasta ahora se genera y
+        // se muestra el QR de recibo.
         setIsQuantityModalVisible(false);
-        setIsModalVisible(true);
         await generarCodigoRecibo();
       }
     } catch (error) {
