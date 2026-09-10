@@ -9,7 +9,7 @@ import { useNavigation } from '@react-navigation/native';
 // listas de Defecto/Causa/Maquina, las mismas que usa Calidad en la web.
 // Corre en esta misma PC de la base de datos (.146); en .146 solo hay una
 // copia vieja/de prueba con otra base de datos (confirmado 2026-09-09).
-const REORDENES_API_URL = 'http://192.168.16.224:4000';
+const REORDENES_API_URL = 'http://192.168.16.146:4000';
 
 type PickerField = 'defecto' | 'causa' | 'maquina' | 'area' | null;
 
