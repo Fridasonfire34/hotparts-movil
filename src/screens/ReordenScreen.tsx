@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ImageBackground, TextInput, TouchableOpacity, FlatList, BackHandler, Alert, Modal, KeyboardAvoidingView, TouchableWithoutFeedback, ActivityIndicator, Keyboard, Platform } from 'react-native';
 import axios from 'axios';
 import { RouteProp } from '@react-navigation/native';
-import { RootStackParamList } from './App';
+import { RootStackParamList } from '../../App';
 import { useNavigation } from '@react-navigation/native';
 
 // Servidor de la app de Reordenes (no hotparts-server): de ahi salen las
@@ -41,7 +41,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [selectedItems, setSelectedItems] = useState<HotPart[]>([]);
     const [searchText, setSearchText] = useState<string>('');
-    const [quantitiesToDeliver, setQuantitiesToDeliver] = useState<Record<string, number>>({});
+    const [quantitiesToDeliver, setQuantitiesToDeliver] = useState<Record<string, number | undefined>>({});
     const [currentItemIndex, setCurrentItemIndex] = useState(0);
     const [isQuantityModalVisible, setIsQuantityModalVisible] = useState(false);
     const [isSearchActive, setIsSearchActive] = useState(false);
@@ -76,7 +76,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                 const response = await axios.get(`http://192.168.16.146:3002/api/hotparts/${endpointListado}`);
                 setHotParts(response.data);
                 setFilteredHotParts(response.data);
-            } catch (error) {
+            } catch (error: any) {
                 let errorMessage = '';
 
                 if (error.response) {
@@ -117,7 +117,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                 setDefectoOptions(Array.isArray(defectosRes.data?.defectos) ? defectosRes.data.defectos : []);
                 setMaquinaOptions(Array.isArray(maquinasRes.data?.maquinas) ? maquinasRes.data.maquinas : []);
                 setAreaDefectoOptions(Array.isArray(areasRes.data?.areas) ? areasRes.data.areas : []);
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Error al obtener defectos/maquinas/areas de Reordenes:', error);
             }
         };
@@ -139,7 +139,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                 params: { defecto: nuevoDefecto },
             });
             setCausaOptions(Array.isArray(response.data?.causas) ? response.data.causas : []);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error al obtener causas de Reordenes:', error);
         } finally {
             setLoadingCausas(false);
@@ -152,7 +152,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
             const response = await axios.get(`http://192.168.16.146:3002/api/hotparts/${endpointListado}`);
             setHotParts(response.data);
             setFilteredHotParts(response.data);
-        } catch (error) {
+        } catch (error: any) {
             Alert.alert('Error', 'No se pudieron actualizar los datos.');
         } finally {
             setRefreshing(false);
@@ -205,7 +205,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                 Alert.alert('Aviso', 'Ya existe una solicitud de reorden pendiente para esta pieza.');
                 return;
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error al verificar solicitud de reorden existente:', error);
             // Mejor esfuerzo: si la verificacion falla (ej. sin red momentanea),
             // no se bloquea todo el flujo de reorden por eso.
@@ -231,7 +231,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                 } else {
                     Alert.alert('Error', response.data.message);
                 }
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Error al procesar la pieza con cantidad 1:', error);
                 Alert.alert('Error', 'Hubo un error al procesar la pieza.');
             }
@@ -265,7 +265,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
             } else {
                 Alert.alert('Error', response.data.message);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error al guardar los detalles del defecto:', error);
             Alert.alert('Error', 'Hubo un error al guardar los detalles del defecto.');
         }
@@ -308,7 +308,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                 setIsDefectoModalVisible(true);
             }
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error al enviar la cantidad:', error);
             Alert.alert('Error', 'Hubo un error al enviar la cantidad.');
         }
@@ -366,7 +366,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
             } else {
                 Alert.alert('Error', response.data.message);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error al guardar comentario:', error);
             Alert.alert('Error', 'Hubo un error al guardar el comentario.');
         }
@@ -415,7 +415,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
                                     });
                                     navigation.navigate('Menu');
 
-                                } catch (error) {
+                                } catch (error: any) {
                                     console.error('Error al guardar movimiento de reorden o enviar notificación:', error);
                                 }
 
@@ -434,7 +434,7 @@ const ReordenScreen: React.FC<Props> = ({ route }) => {
             } else {
                 Alert.alert('Error', response.data.message);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error al registrar sin comentario:', error);
             Alert.alert('Error', 'Error al registrar sin comentario.');
         }

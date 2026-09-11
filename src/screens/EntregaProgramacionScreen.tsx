@@ -16,11 +16,11 @@ import {
   Keyboard,
   TouchableWithoutFeedback,
 } from 'react-native';
-import {Camera} from 'react-native-camera-kit';
+import {Camera, CameraType} from 'react-native-camera-kit';
 import QRCode from 'react-native-qrcode-svg';
 import axios from 'axios';
 import {RouteProp} from '@react-navigation/native';
-import {RootStackParamList} from './App';
+import {RootStackParamList} from '../../App';
 import {runOnJS} from 'react-native-reanimated';
 import {useNavigation} from '@react-navigation/native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -40,6 +40,7 @@ interface HotPart {
   ['Numero de Parte']: string;
   ['Cantidad']: number;
   ['Usuario Entrega']?: string | number | null;
+  ['Destino']?: string | null;
 }
 
 // La web (Disparos) marca una pieza para entregar llenando [Usuario Entrega]
@@ -69,6 +70,14 @@ const EntregaProgramacionScreen: React.FC<Props> = ({route}) => {
   // modo y no se mezclan entre sí, para no tener selección "invisible" de
   // un modo mientras se ve el otro.
   const [modo, setModo] = useState<'web' | 'app' | null>(null);
+  // Cuando "Los marcados desde Web" trae piezas para mas de un area
+  // (Destino) distinta, se pide elegir a cual de las entregas corresponde
+  // el viaje actual, para no generar un solo codigo con receptores mezclados.
+  const [isGrupoEntregaChooserVisible, setIsGrupoEntregaChooserVisible] =
+    useState(false);
+  const [grupoEntregaActivo, setGrupoEntregaActivo] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     const fetchHotParts = async () => {
@@ -81,7 +90,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({route}) => {
         setFilteredHotParts(response.data);
         // La selección se arma hasta que el usuario elige un modo en el
         // chooser (ver handleElegirWeb / handleElegirApp), no aquí.
-      } catch (error) {
+      } catch (error: any) {
         let errorMessage = '';
 
         if (error.response) {
@@ -121,7 +130,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({route}) => {
       );
       setHotParts(response.data);
       setFilteredHotParts(response.data);
-    } catch (error) {
+    } catch (error: any) {
       Alert.alert('Error', 'No se pudieron actualizar los datos.');
     } finally {
       setRefreshing(false);
@@ -211,7 +220,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({route}) => {
         } else {
           Alert.alert('Error', response.data.message);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error al Entregar Hot Part:', error);
         Alert.alert('Error', 'Hubo un error al procesar la solicitud.');
       }
@@ -276,7 +285,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({route}) => {
                 guardarMovimientoResponse.data.message,
               );
             }
-          } catch (guardarMovimientoError) {
+          } catch (guardarMovimientoError: any) {
             console.error(
               'Error al llamar a la API guardarMovimiento:',
               guardarMovimientoError.message,
@@ -307,7 +316,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({route}) => {
                     'Respuesta de entregaProgramacion:',
                     entregaResponse.data,
                   );
-                } catch (error) {
+                } catch (error: any) {
                   console.error('Error al ejecutar las APIs:', error);
                 }
               },
@@ -328,7 +337,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({route}) => {
             'Error desconocido al verificar los códigos',
         );
       }
-    } catch (error) {
+    } catch (error: any) {
       const backendMessage =
         error.response?.data?.error || error.response?.data?.message;
       console.error(
@@ -350,7 +359,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({route}) => {
             eliminarResponse.data.message,
           );
         }
-      } catch (eliminarError) {
+      } catch (eliminarError: any) {
         console.error(
           'Error al llamar a la API eliminarCodigos:',
           eliminarError.message,
@@ -381,15 +390,55 @@ const EntregaProgramacionScreen: React.FC<Props> = ({route}) => {
     [filteredHotParts],
   );
 
-  const hotPartsModoActivo =
-    modo === 'web' ? marcadosWeb : modo === 'app' ? pendientesApp : [];
+  // Agrupa lo marcado desde Web por Destino (area receptora) para poder
+  // ofrecer una entrega a la vez cuando el viaje reparte a mas de un area.
+  // Piezas sin Destino (marcadas antes de este cambio, o desde otra via)
+  // no forman grupo: se tratan como una sola entrega sin distinguir area.
+  const gruposEntregaWeb = React.useMemo(() => {
+    const map = new Map<string, HotPart[]>();
+    marcadosWeb.forEach(item => {
+      const destino = (item['Destino'] ?? '').toString().trim();
+      if (!destino) return;
+      if (!map.has(destino)) map.set(destino, []);
+      map.get(destino)!.push(item);
+    });
+    return Array.from(map.entries()).map(([area, items], idx) => ({
+      area,
+      items,
+      label: `Entrega ${idx + 1}: ${area}`,
+    }));
+  }, [marcadosWeb]);
 
-  // "Los marcados desde Web": ya vienen todos preseleccionados (el usuario
-  // solo confirma/deselecciona). "Marcar desde App": arranca vacío, el
-  // usuario elige a mano qué entregar.
+  const hotPartsModoActivo =
+    modo === 'web'
+      ? grupoEntregaActivo
+        ? marcadosWeb.filter(
+            item => (item['Destino'] ?? '').toString().trim() === grupoEntregaActivo,
+          )
+        : marcadosWeb
+      : modo === 'app'
+      ? pendientesApp
+      : [];
+
+  // "Los marcados desde Web": si el viaje reparte a mas de un area, primero
+  // se elige a cual entrega corresponde (ver isGrupoEntregaChooserVisible);
+  // si no hay mezcla de areas, se preseleccionan todos como antes.
+  // "Marcar desde App": arranca vacío, el usuario elige a mano qué entregar.
   const handleElegirWeb = () => {
     setModo('web');
-    setSelectedItems(marcadosWeb);
+    setGrupoEntregaActivo(null);
+    if (gruposEntregaWeb.length > 1) {
+      setSelectedItems([]);
+      setIsGrupoEntregaChooserVisible(true);
+    } else {
+      setSelectedItems(marcadosWeb);
+    }
+  };
+
+  const handleElegirGrupoEntrega = (grupo: {area: string; items: HotPart[]}) => {
+    setGrupoEntregaActivo(grupo.area);
+    setSelectedItems(grupo.items);
+    setIsGrupoEntregaChooserVisible(false);
   };
 
   const handleElegirApp = () => {
@@ -470,7 +519,9 @@ const EntregaProgramacionScreen: React.FC<Props> = ({route}) => {
             <View style={styles.modoBanner}>
               <Text style={styles.modoBannerText}>
                 {modo === 'web'
-                  ? `Entregando lo marcado desde Web (${marcadosWeb.length})`
+                  ? grupoEntregaActivo
+                    ? `Entregando desde Web — ${grupoEntregaActivo} (${hotPartsModoActivo.length})`
+                    : `Entregando lo marcado desde Web (${marcadosWeb.length})`
                   : `Marcando manualmente desde la app (${pendientesApp.length} pendientes)`}
               </Text>
             </View>
@@ -573,6 +624,33 @@ const EntregaProgramacionScreen: React.FC<Props> = ({route}) => {
             </View>
           </Modal>
 
+          <Modal
+            transparent={true}
+            animationType="fade"
+            visible={isGrupoEntregaChooserVisible}
+            onRequestClose={() => {}}>
+            <View style={styles.modalBackground}>
+              <View style={styles.modalContainer}>
+                <Text style={styles.modalTitle}>Entregar Hot Parts</Text>
+                <Text style={styles.chooserSubtitle}>
+                  Se generaron entregas a {gruposEntregaWeb.length} áreas.
+                  Selecciona cuál vas a realizar:
+                </Text>
+
+                {gruposEntregaWeb.map(grupo => (
+                  <TouchableOpacity
+                    key={grupo.area}
+                    style={[styles.chooserButton, {backgroundColor: '#0e5699'}]}
+                    onPress={() => handleElegirGrupoEntrega(grupo)}>
+                    <Text style={styles.buttonText}>
+                      {grupo.label} ({grupo.items.length})
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </Modal>
+
           {/* MODAL */}
           <Modal
             transparent={true}
@@ -637,7 +715,7 @@ const EntregaProgramacionScreen: React.FC<Props> = ({route}) => {
               onRequestClose={() => setIsScannerVisible(false)}>
               <Camera
                 style={{flex: 1}}
-                cameraType="back"
+                cameraType={CameraType.Back}
                 scanBarcode={true}
                 onReadCode={event => {
                   setCodigoEntrega(event.nativeEvent.codeStringValue);

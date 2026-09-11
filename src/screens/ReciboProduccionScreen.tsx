@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ImageBackground, TextInput, TouchableOpacity, SectionList, BackHandler, Alert, Modal, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Platform, ActivityIndicator } from 'react-native';
 import axios from 'axios';
 import { RouteProp } from '@react-navigation/native';
-import { RootStackParamList } from './App';
+import { RootStackParamList } from '../../App';
 import QRCode from 'react-native-qrcode-svg';
-import { Camera } from 'react-native-camera-kit';
+import { Camera, CameraType } from 'react-native-camera-kit';
+import messaging from '@react-native-firebase/messaging';
 
 type ReciboProduccionScreenRouteProp = RouteProp<RootStackParamList, 'ReciboProduccion'>;
 
@@ -17,6 +18,7 @@ interface HotPart {
     ['Secuencia']: number;
     ['Numero de Parte']: string;
     ['Cantidad']: number;
+    ['Destino']?: string | null;
 }
 
 const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
@@ -32,12 +34,44 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
     const [refreshing, setRefreshing] = useState(false);
     const [isChooserVisible, setIsChooserVisible] = useState(!autoFetch);
     const [isScannerVisible, setIsScannerVisible] = useState(false);
+    // Si lo pendiente para el departamento viene de mas de un area (Destino),
+    // se pregunta primero de cual area viene el receptor para no mostrarle
+    // piezas dirigidas a otra area.
+    const [isAreaChooserVisible, setIsAreaChooserVisible] = useState(false);
+    const [areaOptions, setAreaOptions] = useState<string[]>([]);
+    const [selectedArea, setSelectedArea] = useState<string | null>(null);
+    const [pendingRawData, setPendingRawData] = useState<HotPart[]>([]);
+    // Cuando quien entrega confirma el código mientras este modal está abierto
+    // esperando, se cierra y se abre el de Éxito. En Android, abrir el segundo
+    // <Modal> en el mismo tick que se cierra el primero hace que el primero se
+    // quede pegado en pantalla, así que se espera a que termine su animación
+    // de cierre antes de mostrar el de Éxito.
+    const [isExitoModalVisible, setIsExitoModalVisible] = useState(false);
+
+    useEffect(() => {
+        const unsubscribe = messaging().onMessage(async remoteMessage => {
+            const data = remoteMessage.data as Record<string, string> | undefined;
+            if (data?.tipo !== 'entrega_confirmada') return;
+            if (String(data.usuarioRecibe) !== String(nomina)) return;
+
+            setIsModalVisible(false);
+            setTimeout(() => setIsExitoModalVisible(true), 350);
+        });
+
+        return unsubscribe;
+    }, [nomina]);
+
+    const handleCerrarExito = () => {
+        setIsExitoModalVisible(false);
+        fetchListadoEntregaProduccion();
+    };
 
     const mapListadoItem = (row: any): HotPart => ({
         Folio: row.FOLIO ?? row.Folio,
         ['Secuencia']: row['Secuencia'],
         ['Numero de Parte']: row['Numero de Parte'],
         ['Cantidad']: row['Cantidad'],
+        ['Destino']: row['Destino'] ?? null,
     });
 
     const fetchListadoEntregaProduccion = async () => {
@@ -45,14 +79,17 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
         try {
             const response = await axios.post('http://192.168.16.146:3002/api/hotparts/listadoEntregaProgramacion', { nomina });
             const data = (response.data.data ?? []).map(mapListadoItem);
-            setHotParts(data);
-            setFilteredHotParts(data);
+            const filtered = selectedArea
+                ? data.filter((item: HotPart) => (item['Destino'] ?? '').toString().trim() === selectedArea)
+                : data;
+            setHotParts(filtered);
+            setFilteredHotParts(filtered);
             // No se preselecciona nada: esta lista trae TODO lo pendiente para el
             // departamento (de cualquier usuario que haya entregado), así que el
             // usuario debe marcar a mano justo lo que tiene físicamente enfrente.
             // Evita recibir por error piezas de una entrega de otra persona.
             setSelectedItems([]);
-        } catch (error) {
+        } catch (error: any) {
             let errorMessage = '';
 
             if (error.response) {
@@ -100,9 +137,52 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
         setRefreshing(false);
     };
 
-    const handleElegirBuscar = () => {
+    const handleElegirBuscar = async () => {
         setIsChooserVisible(false);
-        fetchListadoEntregaProduccion();
+        setLoading(true);
+        try {
+            const response = await axios.post('http://192.168.16.146:3002/api/hotparts/listadoEntregaProgramacion', { nomina });
+            const data = (response.data.data ?? []).map(mapListadoItem);
+            const areas = Array.from(
+                new Set(
+                    data
+                        .map((item: HotPart) => (item['Destino'] ?? '').toString().trim())
+                        .filter((destino: string) => !!destino)
+                )
+            ) as string[];
+
+            if (areas.length > 1) {
+                setPendingRawData(data);
+                setAreaOptions(areas);
+                setIsAreaChooserVisible(true);
+            } else {
+                setSelectedArea(null);
+                setHotParts(data);
+                setFilteredHotParts(data);
+                setSelectedItems([]);
+            }
+        } catch (error: any) {
+            Alert.alert('Error al obtener los HotParts', error instanceof Error ? error.message : 'Error desconocido');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleElegirArea = (area: string) => {
+        setSelectedArea(area);
+        const filtered = pendingRawData.filter((item) => (item['Destino'] ?? '').toString().trim() === area);
+        setHotParts(filtered);
+        setFilteredHotParts(filtered);
+        setSelectedItems([]);
+        setIsAreaChooserVisible(false);
+    };
+
+    const handleElegirTodasAreas = () => {
+        setSelectedArea(null);
+        setHotParts(pendingRawData);
+        setFilteredHotParts(pendingRawData);
+        setSelectedItems([]);
+        setIsAreaChooserVisible(false);
     };
 
     const handleElegirEscanear = () => {
@@ -143,7 +223,7 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
             setHotParts(items);
             setFilteredHotParts(items);
             setSelectedItems(items);
-        } catch (error) {
+        } catch (error: any) {
             Alert.alert(
                 'Código QR no válido',
                 'Este código no contiene información de Hot Parts.',
@@ -184,7 +264,7 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
                 } else {
                     Alert.alert('Error', response.data.message);
                 }
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Error al Recibir Hot Part:', error);
                 Alert.alert('Error', 'Hubo un error al procesar la solicitud.');
             }
@@ -210,7 +290,7 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
             setCodigoEntrega(typeof codigoEntrega === 'string' ? codigoEntrega : codigoEntrega[0]);
             setLoading(false);
             setIsModalVisible(true);
-        } catch (error) {
+        } catch (error: any) {
             setLoading(false);
             if (error.response) {
                 console.error("Error en respuesta:", error.response.data);
@@ -229,7 +309,7 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
         try {
             setIsModalVisible(false);
             await fetchListadoEntregaProduccion();
-        } catch (outerError) {
+        } catch (outerError: any) {
             console.error('Error inesperado en handleConfirmar:', outerError);
             Alert.alert('Error inesperado', 'Ocurrió un error inesperado. Inténtalo de nuevo.');
             setLoading(false);
@@ -373,6 +453,28 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
                     <Modal
                         transparent={true}
                         animationType="fade"
+                        visible={isExitoModalVisible}
+                        onRequestClose={handleCerrarExito}
+                    >
+                        <View style={styles.modalBackground}>
+                            <View style={styles.modalContainer}>
+                                <Text style={styles.modalTitle}>Éxito</Text>
+                                <Text style={styles.codigoTexto}>
+                                    Hot Parts recibidos correctamente
+                                </Text>
+                                <TouchableOpacity
+                                    style={styles.confirmButton}
+                                    onPress={handleCerrarExito}
+                                >
+                                    <Text style={styles.buttonText}>OK</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </Modal>
+
+                    <Modal
+                        transparent={true}
+                        animationType="fade"
                         visible={isChooserVisible}
                         onRequestClose={handleElegirBuscar}
                     >
@@ -392,6 +494,34 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
                         </View>
                     </Modal>
 
+                    <Modal
+                        transparent={true}
+                        animationType="fade"
+                        visible={isAreaChooserVisible}
+                        onRequestClose={() => {}}
+                    >
+                        <View style={styles.modalBackground}>
+                            <View style={styles.modalContainer}>
+                                <Text style={styles.modalTitle}>Recibir Hot Parts</Text>
+                                <Text style={styles.chooserSubtitle}>¿De qué área vienes a recibir?</Text>
+
+                                {areaOptions.map((area) => (
+                                    <TouchableOpacity
+                                        key={area}
+                                        style={[styles.chooserButton, { backgroundColor: '#0e5699' }]}
+                                        onPress={() => handleElegirArea(area)}
+                                    >
+                                        <Text style={styles.buttonText}>{area}</Text>
+                                    </TouchableOpacity>
+                                ))}
+
+                                <TouchableOpacity style={[styles.chooserButton, { backgroundColor: '#4CAF50' }]} onPress={handleElegirTodasAreas}>
+                                    <Text style={styles.buttonText}>Todas las áreas</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </Modal>
+
                     {isScannerVisible && (
                         <Modal
                             animationType="slide"
@@ -401,7 +531,7 @@ const ReciboProduccionScreen: React.FC<Props> = ({ route }) => {
                         >
                             <Camera
                                 style={{ flex: 1 }}
-                                cameraType="back"
+                                cameraType={CameraType.Back}
                                 scanBarcode={true}
                                 onReadCode={(event) => handleReadCode(event.nativeEvent.codeStringValue)}
                             />

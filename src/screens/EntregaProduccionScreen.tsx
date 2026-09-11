@@ -17,11 +17,11 @@ import {
   Keyboard,
   TouchableWithoutFeedback,
 } from 'react-native';
-import {Camera} from 'react-native-camera-kit';
+import {Camera, CameraType} from 'react-native-camera-kit';
 import QRCode from 'react-native-qrcode-svg';
 import axios from 'axios';
 import {RouteProp} from '@react-navigation/native';
-import {RootStackParamList} from './App';
+import {RootStackParamList} from '../../App';
 import {runOnJS} from 'react-native-reanimated';
 import {useNavigation} from '@react-navigation/native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -54,7 +54,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({route}) => {
   const [selectedItems, setSelectedItems] = useState<HotPart[]>([]);
   const [searchText, setSearchText] = useState<string>('');
   const [quantitiesToDeliver, setQuantitiesToDeliver] = useState<
-    Record<string, number>
+    Record<string, number | undefined>
   >({});
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const [isQuantityModalVisible, setIsQuantityModalVisible] = useState(false);
@@ -91,7 +91,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({route}) => {
         );
         setHotParts(response.data);
         setFilteredHotParts(response.data);
-      } catch (error) {
+      } catch (error: any) {
         let errorMessage = '';
 
         if (error.response) {
@@ -131,7 +131,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({route}) => {
       );
       setHotParts(response.data);
       setFilteredHotParts(response.data);
-    } catch (error) {
+    } catch (error: any) {
       Alert.alert('Error', 'No se pudieron actualizar los datos.');
     } finally {
       setRefreshing(false);
@@ -216,7 +216,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({route}) => {
         } else {
           Alert.alert('Error', response.data.message);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error al procesar las filas con cantidad 1:', error);
         Alert.alert(
           'Error',
@@ -263,7 +263,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({route}) => {
         .catch(err =>
           console.error('Error al enviar solicitud de recibo:', err),
         );
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al guardar listadoEntregaProduccion:', error);
     }
   };
@@ -319,7 +319,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({route}) => {
         await enviarListadoEntregaProduccion();
         setIsModalVisible(true);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al enviar la cantidad:', error);
       Alert.alert('Error', 'Hubo un error al enviar la cantidad.');
     }
@@ -404,7 +404,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({route}) => {
                     'Respuesta de entregaProduccion:',
                     entregaResponse.data,
                   );
-                } catch (error) {
+                } catch (error: any) {
                   console.error('Error al ejecutar las APIs:', error);
                 }
               },
@@ -425,7 +425,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({route}) => {
             'Error desconocido al verificar los códigos',
         );
       }
-    } catch (error) {
+    } catch (error: any) {
       const backendMessage =
         error.response?.data?.error || error.response?.data?.message;
       console.error(
@@ -447,7 +447,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({route}) => {
             eliminarResponse.data.message,
           );
         }
-      } catch (eliminarError) {
+      } catch (eliminarError: any) {
         console.error(
           'Error al llamar a la API eliminarCodigos:',
           eliminarError.message,
@@ -724,7 +724,7 @@ const EntregaProduccionScreen: React.FC<Props> = ({route}) => {
               onRequestClose={() => setIsScannerVisible(false)}>
               <Camera
                 style={{flex: 1}}
-                cameraType="back"
+                cameraType={CameraType.Back}
                 scanBarcode={true}
                 onReadCode={event => {
                   setCodigoEntrega(event.nativeEvent.codeStringValue);

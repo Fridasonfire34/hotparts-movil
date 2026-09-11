@@ -225,7 +225,7 @@ const MenuScreen: React.FC<Props> = ({navigation}) => {
     };
 
     if (routeMap[user.Area]) {
-      navigation.navigate(routeMap[user.Area], {
+      navigation.navigate(routeMap[user.Area] as any, {
         nomina: user.Nomina,
         nombre: user.Nombre,
         area: user.Area,
@@ -241,7 +241,7 @@ const MenuScreen: React.FC<Props> = ({navigation}) => {
     };
 
     if (routeMap[user.Area]) {
-      navigation.navigate(routeMap[user.Area], {
+      navigation.navigate(routeMap[user.Area] as any, {
         nomina: user.Nomina,
         nombre: user.Nombre,
         area: user.Area,
@@ -255,7 +255,7 @@ const MenuScreen: React.FC<Props> = ({navigation}) => {
       Produccion: 'ReordenScreen',
     };
     if (routeMap[user.Area]) {
-      navigation.navigate(routeMap[user.Area], {
+      navigation.navigate(routeMap[user.Area] as any, {
         nomina: user.Nomina,
         nombre: user.Nombre,
         area: user.Area,

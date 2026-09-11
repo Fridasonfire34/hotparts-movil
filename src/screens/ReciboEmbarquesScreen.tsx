@@ -18,8 +18,9 @@ import {
 } from 'react-native';
 import axios from 'axios';
 import {RouteProp} from '@react-navigation/native';
-import {RootStackParamList} from './App';
+import {RootStackParamList} from '../../App';
 import QRCode from 'react-native-qrcode-svg';
+import messaging from '@react-native-firebase/messaging';
 
 type ReciboCalidadScreenRouteProp = RouteProp<
   RootStackParamList,
@@ -47,13 +48,48 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({route}) => {
   const [selectedItems, setSelectedItems] = useState<HotPart[]>([]);
   const [searchText, setSearchText] = useState<string>('');
   const [quantitiesToDeliver, setQuantitiesToDeliver] = useState<
-    Record<string, number>
+    Record<string, number | undefined>
   >({});
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const [isQuantityModalVisible, setIsQuantityModalVisible] = useState(false);
   const [foliosCantidadUno, setFoliosCantidadUno] = useState<string[]>([]);
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  // Cuando quien entrega confirma el código mientras este modal está abierto
+  // esperando, se cierra y se abre el de Éxito. En Android, abrir el segundo
+  // <Modal> en el mismo tick que se cierra el primero hace que el primero se
+  // quede pegado en pantalla, así que se espera a que termine su animación
+  // de cierre antes de mostrar el de Éxito.
+  const [isExitoModalVisible, setIsExitoModalVisible] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = messaging().onMessage(async remoteMessage => {
+      const data = remoteMessage.data as Record<string, string> | undefined;
+      if (data?.tipo !== 'entrega_confirmada') return;
+      if (String(data.usuarioRecibe) !== String(nomina)) return;
+
+      setIsModalVisible(false);
+      setTimeout(() => setIsExitoModalVisible(true), 350);
+    });
+
+    return unsubscribe;
+  }, [nomina]);
+
+  const handleCerrarExito = async () => {
+    setIsExitoModalVisible(false);
+    setLoading(true);
+    try {
+      const response = await axios.get(
+        'http://192.168.16.146:3002/api/hotparts/calidad',
+      );
+      setHotParts(response.data);
+      setFilteredHotParts(response.data);
+    } catch (error: any) {
+      Alert.alert('Error', 'No se pudieron actualizar los datos.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchHotParts = async () => {
@@ -64,7 +100,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({route}) => {
         );
         setHotParts(response.data);
         setFilteredHotParts(response.data);
-      } catch (error) {
+      } catch (error: any) {
         let errorMessage = '';
 
         if (error.response) {
@@ -119,7 +155,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({route}) => {
       );
       setHotParts(response.data);
       setFilteredHotParts(response.data);
-    } catch (error) {
+    } catch (error: any) {
       Alert.alert('Error', 'No se pudieron actualizar los datos.');
     } finally {
       setRefreshing(false);
@@ -183,7 +219,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({route}) => {
           Alert.alert('Error', response.data.message);
           return;
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error al procesar las filas con cantidad 1:', error);
         Alert.alert(
           'Error',
@@ -251,7 +287,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({route}) => {
         setIsQuantityModalVisible(false);
         await generarCodigoRecibo();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al enviar la cantidad:', error);
       Alert.alert('Error', 'Hubo un error al enviar la cantidad.');
     }
@@ -289,7 +325,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({route}) => {
       setLoading(false);
       setIsModalVisible(true);
       setFoliosCantidadUno([]); // Limpiar después de generar código
-    } catch (error) {
+    } catch (error: any) {
       setLoading(false);
       if (error.response) {
         console.error('Error en respuesta:', error.response.data);
@@ -325,7 +361,7 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({route}) => {
       );
       setHotParts(response.data);
       setFilteredHotParts(response.data);
-    } catch (error) {
+    } catch (error: any) {
       let errorMessage = '';
 
       if (error.response) {
@@ -535,6 +571,26 @@ const ReciboEmbarquesScreen: React.FC<Props> = ({route}) => {
                 <TouchableOpacity
                   style={styles.confirmButton}
                   onPress={handleConfirmar}>
+                  <Text style={styles.buttonText}>OK</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+
+          <Modal
+            transparent={true}
+            animationType="fade"
+            visible={isExitoModalVisible}
+            onRequestClose={handleCerrarExito}>
+            <View style={styles.modalBackground}>
+              <View style={styles.modalContainer}>
+                <Text style={styles.modalTitle}>Éxito</Text>
+                <Text style={styles.codigoTexto}>
+                  Hot Parts recibidos correctamente
+                </Text>
+                <TouchableOpacity
+                  style={styles.confirmButton}
+                  onPress={handleCerrarExito}>
                   <Text style={styles.buttonText}>OK</Text>
                 </TouchableOpacity>
               </View>

@@ -18,9 +18,10 @@ import {
 } from 'react-native';
 import axios from 'axios';
 import {RouteProp} from '@react-navigation/native';
-import {RootStackParamList} from './App';
+import {RootStackParamList} from '../../App';
 import QRCode from 'react-native-qrcode-svg';
-import {Camera} from 'react-native-camera-kit';
+import {Camera, CameraType} from 'react-native-camera-kit';
+import messaging from '@react-native-firebase/messaging';
 
 type ReciboCalidadScreenRouteProp = RouteProp<
   RootStackParamList,
@@ -48,7 +49,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({route}) => {
   const [selectedItems, setSelectedItems] = useState<HotPart[]>([]);
   const [searchText, setSearchText] = useState<string>('');
   const [quantitiesToDeliver, setQuantitiesToDeliver] = useState<
-    Record<string, number>
+    Record<string, number | undefined>
   >({});
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const [isQuantityModalVisible, setIsQuantityModalVisible] = useState(false);
@@ -58,6 +59,30 @@ const ReciboCalidadScreen: React.FC<Props> = ({route}) => {
   const [isScannerVisible, setIsScannerVisible] = useState(false);
   const [isScannedList, setIsScannedList] = useState(false);
   const [isChooserVisible, setIsChooserVisible] = useState(!autoFetch);
+  // Cuando quien entrega confirma el código mientras este modal está abierto
+  // esperando, se cierra y se abre el de Éxito. En Android, abrir el segundo
+  // <Modal> en el mismo tick que se cierra el primero hace que el primero se
+  // quede pegado en pantalla, así que se espera a que termine su animación
+  // de cierre antes de mostrar el de Éxito.
+  const [isExitoModalVisible, setIsExitoModalVisible] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = messaging().onMessage(async remoteMessage => {
+      const data = remoteMessage.data as Record<string, string> | undefined;
+      if (data?.tipo !== 'entrega_confirmada') return;
+      if (String(data.usuarioRecibe) !== String(nomina)) return;
+
+      setIsModalVisible(false);
+      setTimeout(() => setIsExitoModalVisible(true), 350);
+    });
+
+    return unsubscribe;
+  }, [nomina]);
+
+  const handleCerrarExito = () => {
+    setIsExitoModalVisible(false);
+    fetchListadoEntregaProduccion();
+  };
 
   const mapListadoItem = (row: any): HotPart => ({
     Folio: row.FOLIO ?? row.Folio,
@@ -81,7 +106,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({route}) => {
       // usuario debe marcar a mano justo lo que tiene físicamente enfrente.
       // Evita recibir por error piezas de una entrega de otra persona.
       setSelectedItems([]);
-    } catch (error) {
+    } catch (error: any) {
       let errorMessage = '';
 
       if (error.response) {
@@ -207,7 +232,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({route}) => {
       setFilteredHotParts(items);
       setSelectedItems(items);
       setIsScannedList(true);
-    } catch (error) {
+    } catch (error: any) {
       Alert.alert(
         'Código QR no válido',
         'Este código no contiene información de Hot Parts.',
@@ -262,7 +287,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({route}) => {
         typeof nuevoCodigo === 'string' ? nuevoCodigo : nuevoCodigo[0],
       );
       setIsModalVisible(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al confirmar el recibo escaneado:', error);
       Alert.alert('Error', 'Hubo un error al procesar la solicitud.');
     } finally {
@@ -311,7 +336,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({route}) => {
           Alert.alert('Error', response.data.message);
           return;
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error al procesar las filas con cantidad 1:', error);
         Alert.alert(
           'Error',
@@ -379,7 +404,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({route}) => {
         setIsQuantityModalVisible(false);
         await generarCodigoRecibo();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al enviar la cantidad:', error);
       Alert.alert('Error', 'Hubo un error al enviar la cantidad.');
     }
@@ -420,7 +445,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({route}) => {
       setLoading(false);
       setIsModalVisible(true);
       setFoliosCantidadUno([]); // Limpiar después de generar código
-    } catch (error) {
+    } catch (error: any) {
       setLoading(false);
       if (error.response) {
         console.error('Error en respuesta:', error.response.data);
@@ -451,7 +476,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({route}) => {
     try {
       setIsModalVisible(false);
       await fetchListadoEntregaProduccion();
-    } catch (outerError) {
+    } catch (outerError: any) {
       console.error('Error inesperado en handleConfirmar:', outerError);
       Alert.alert(
         'Error inesperado',
@@ -662,6 +687,26 @@ const ReciboCalidadScreen: React.FC<Props> = ({route}) => {
           <Modal
             transparent={true}
             animationType="fade"
+            visible={isExitoModalVisible}
+            onRequestClose={handleCerrarExito}>
+            <View style={styles.modalBackground}>
+              <View style={styles.modalContainer}>
+                <Text style={styles.modalTitle}>Éxito</Text>
+                <Text style={styles.codigoTexto}>
+                  Hot Parts recibidos correctamente
+                </Text>
+                <TouchableOpacity
+                  style={styles.confirmButton}
+                  onPress={handleCerrarExito}>
+                  <Text style={styles.buttonText}>OK</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+
+          <Modal
+            transparent={true}
+            animationType="fade"
             visible={isChooserVisible}
             onRequestClose={handleElegirBuscar}>
             <View style={styles.modalBackground}>
@@ -694,7 +739,7 @@ const ReciboCalidadScreen: React.FC<Props> = ({route}) => {
               onRequestClose={() => setIsScannerVisible(false)}>
               <Camera
                 style={{flex: 1}}
-                cameraType="back"
+                cameraType={CameraType.Back}
                 scanBarcode={true}
                 onReadCode={event =>
                   handleReadCode(event.nativeEvent.codeStringValue)

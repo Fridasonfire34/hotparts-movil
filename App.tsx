@@ -34,6 +34,15 @@ export type RootStackParamList = {
   ReordenScreen: { nomina: string; nombre: string; area: string };
 };
 
+// Sin esto, useNavigation() en las pantallas no infiere los parametros de
+// RootStackParamList y TypeScript no puede resolver el overload correcto de
+// navigate() (aunque el screen exista y el llamado sea valido en runtime).
+declare global {
+  namespace ReactNavigation {
+    interface RootParamList extends RootStackParamList {}
+  }
+}
+
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -41,7 +50,7 @@ const VERSION_JSON_URL = 'https://hot-parts.web.app/version.json'; // La URL de 
 
 // Versión instalada de la app. Debe actualizarse a mano en cada release para
 // que coincida con el "version" que se publica en public/version.json.
-const CURRENT_APP_VERSION = '1.7';
+const CURRENT_APP_VERSION = '1.8';
 
 // Compara versiones tipo "1.0.10" vs "1.0.7" numéricamente (no como texto).
 const esVersionMasNueva = (remota: string, actual: string) => {
