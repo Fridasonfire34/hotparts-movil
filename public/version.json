@@ -1,5 +1,5 @@
 {
-  "version": "1.7",
-  "apk_url": "https://github.com/Fridasonfire34/hotparts-movil/releases/download/1.7/hotparts.apk",
-  "changelog": "Corrige que toda la app apunte al servidor correcto (192.168.16.146), incluyendo el flujo de Reorden."
+  "version": "1.8",
+  "apk_url": "https://github.com/Fridasonfire34/hotparts-movil/releases/download/1.8/hotparts.apk",
+  "changelog": "Entregas de Programación por área (Paneles/Partes Metálicas), notificación de Hot Parts recibidos, y correcciones internas."
 }
